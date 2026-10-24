@@ -18,3 +18,7 @@ Run `npm test` and `npm run build`. Without configuration, `/api/index?action=st
 Sessions use Secure, HttpOnly, SameSite=Lax cookies on HTTPS and expire after at most one hour, without automatic refresh. Every API request checks the provider's current user and the current allowlist. Removing an address revokes app access on its next API request. Logout clears this browser's cookies; it does not revoke a copied token elsewhere or erase previously downloaded browser data. All approved users have equal read/write access. Application assets are public; private financial records must stay out of public/, dist/, Git, and test fixtures.
 
 No Supabase project, SMTP setup, real email delivery, or production deployment is created by adding this code. The provider settings and real end-to-end login remain required activation steps.
+
+## Temporary access without login
+
+Set `REQUIRE_EMAIL_LOGIN=0` in Vercel Production and redeploy to allow the existing browser-storage workflow without email login. This switch applies only when `VERCEL` is set and Redis is absent. Server/local and shared database reads and writes still require authentication. No financial records are shipped in static assets. Browser data remains local to each browser. To restore email login, remove this variable or set it to `1`, then redeploy. Supabase email activation still requires validation; a live OTP probe returned `signup_disabled`, so do not assume SMTP alone is the cause.

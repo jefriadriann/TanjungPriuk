@@ -8,6 +8,11 @@ export default async function handler(req,res){
  try{
   const action=new URL(req.url,'http://localhost').searchParams.get('action')||'state';
   const storage=cloud()?'cloud':process.env.VERCEL?'browser':'local';
+  // Temporary open access is restricted to browser storage; server data stays protected.
+  if(storage==='browser'&&process.env.REQUIRE_EMAIL_LOGIN==='0'){
+   if(action==='status'&&req.method==='GET')return send(200,{configured:true,access:'browser',storage,authenticated:true});
+   return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
+  }
   if(['login','logout','auth-callback'].includes(action))return await authAction(req,res,action,send);
   const auth=config();
   const user=await identity(req,auth);

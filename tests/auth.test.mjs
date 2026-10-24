@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import handler from '../api/workspace.mjs';
 import {empty} from '../public/domain.mjs';
 const originalFetch=globalThis.fetch;
-const names=['APP_ORIGIN','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','AUTH_ALLOWED_EMAILS'];
+const names=['APP_ORIGIN','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','AUTH_ALLOWED_EMAILS','REQUIRE_EMAIL_LOGIN','VERCEL','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN'];
 const original=Object.fromEntries(names.map(n=>[n,process.env[n]]));
 afterEach(()=>{globalThis.fetch=originalFetch;for(const n of names){if(original[n]===undefined)delete process.env[n];else process.env[n]=original[n];}});
 function setup(){process.env.APP_ORIGIN='https://fleet.example.com';process.env.SUPABASE_URL='https://auth.example.com';process.env.SUPABASE_PUBLISHABLE_KEY='public-test-key';process.env.AUTH_ALLOWED_EMAILS='admin@example.com';}
@@ -22,3 +22,5 @@ test('callback validates provider identity before setting session and redirects 
 test('expired or reused callback code is rejected',async()=>{setup();globalThis.fetch=async()=>response({},400);const r=await request('auth-callback&code=expired',{headers:{cookie:'tp_login='+'a'.repeat(43)}});assert.equal(r.statusCode,401);assert.equal(r.headers['Set-Cookie'].length,1);});
 test('authenticated writes still enforce origin and domain validation',async()=>{setup();globalThis.fetch=async()=>response(user);assert.equal((await request('state',{method:'PUT',body:empty(),headers:{cookie:'tp_session=test',origin:'https://evil.example'}})).statusCode,403);const invalid=empty();invalid.transactions=[{id:'invalid'}];assert.equal((await request('state',{method:'PUT',body:invalid,headers:{cookie:'tp_session=test'}})).statusCode,422);});
 test('logout clears both HttpOnly cookies',async()=>{setup();const r=await request('logout',{method:'POST'});assert.equal(r.statusCode,200);assert.equal(r.headers['Set-Cookie'].length,2);for(const c of r.headers['Set-Cookie'])assert.match(c,/Max-Age=0; Secure/);});
+
+test('temporary open mode only permits browser storage, never server financial data',async()=>{setup();process.env.REQUIRE_EMAIL_LOGIN='0';process.env.VERCEL='1';delete process.env.UPSTASH_REDIS_REST_URL;delete process.env.UPSTASH_REDIS_REST_TOKEN;const status=await request('status');assert.equal(status.body.authenticated,true);assert.equal(status.body.access,'browser');assert.equal((await request('state')).statusCode,503);assert.equal((await request('state',{method:'PUT',body:empty()})).statusCode,503);process.env.UPSTASH_REDIS_REST_URL='https://redis.example.com';process.env.UPSTASH_REDIS_REST_TOKEN='test';assert.equal((await request('state')).statusCode,401);delete process.env.VERCEL;delete process.env.UPSTASH_REDIS_REST_URL;delete process.env.UPSTASH_REDIS_REST_TOKEN;assert.equal((await request('state')).statusCode,401);});

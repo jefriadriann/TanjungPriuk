@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';
+import test,{beforeEach,afterEach} from 'node:test';import assert from 'node:assert/strict';
 import {empty,validate,normalize,totals,issues,categoriesFor,monthKey,selectRows,clientSummary,weeklyRows} from '../public/domain.mjs';import handler from '../api/workspace.mjs';
 const tx=(overrides={})=>({id:'t1',plate:'B 9322 UOM',date:'2026-10-24',period:'Oktober 2026',description:'Order',type:'Pemasukan',category:'Pendapatan angkutan',customer:'Sinergi',rit:1,income:150000,expense:0,...overrides});
 test('income/expense categories are disjoint and category mismatch is rejected',()=>{assert.equal(categoriesFor('Pemasukan').some(c=>categoriesFor('Pengeluaran').includes(c)),false);const s=empty();s.transactions=[tx({category:'Solar / BBM'})];assert.throws(()=>validate(s));s.transactions=[tx({type:'Pengeluaran',category:'Pendapatan angkutan',income:0,expense:100})];assert.throws(()=>validate(s));});
@@ -14,3 +14,8 @@ test('unconfigured write endpoint does not accept financial data',async()=>{asse
 test('revision check prevents concurrent overwrites',async()=>{const {mkdtemp,rm}=await import('node:fs/promises');const os=await import('node:os');const path=await import('node:path');const {save,load}=await import('../lib/store.mjs');const tmp=await mkdtemp(path.join(os.tmpdir(),'tp-test-'));try{process.env.LOCAL_DATA_DIR=tmp;const s=empty();s.revision=1;const result=await Promise.all([save(s,0),save(s,0)]);assert.equal(result.filter(Boolean).length,1);assert.equal((await load()).revision,1);}finally{delete process.env.LOCAL_DATA_DIR;await rm(tmp,{recursive:true,force:true});}});
 
 test('expense rit does not double-count billed trips',()=>{const a=tx({rit:2}),b=tx({id:'expense',type:'Pengeluaran',category:'Solar / BBM',income:0,expense:100000,rit:2});assert.equal(totals([a,b]).rit,2);});
+
+const authEnvNames=['APP_ORIGIN','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','AUTH_ALLOWED_EMAILS','REQUIRE_EMAIL_LOGIN'];
+let savedAuthEnv;
+beforeEach(()=>{savedAuthEnv=Object.fromEntries(authEnvNames.map(k=>[k,process.env[k]]));for(const k of authEnvNames)delete process.env[k];});
+afterEach(()=>{for(const k of authEnvNames){if(savedAuthEnv[k]===undefined)delete process.env[k];else process.env[k]=savedAuthEnv[k];}});
