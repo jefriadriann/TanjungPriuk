@@ -54,3 +54,7 @@ Manual operational updates include vehicle status, assigned driver, service/docu
 ## Optional public initial dataset
 
 With explicit permission to publish financial records, `PUBLIC_EXCEL_IMPORT=1` may enable automatic initial data loading in Vercel browser mode (`REQUIRE_EMAIL_LOGIN=0`, no Redis). The API reads the `initial` row of Supabase `public.tp_public_import` through its publishable key. This dataset is publicly readable; anonymous writes must be revoked and RLS must allow only SELECT. Keep records out of Git and static assets. The browser merges source IDs once without overwriting existing edits; subsequent changes stay in that browser. Without this flag, no public source dataset is fetched. Table creation and data publication require separate explicit authorization for the destination.
+
+## Dashboard details
+
+Click a cost category to inspect its individual expenses in descending amount order, or use the cost panel arrow to inspect all expenses. Unit totals and the unit column appear when all trucks are selected; a single-truck filter omits them. Click either monthly chart bar for full rupiah income/expense values and per-unit totals. Both dialogs respect the active period, truck, and client filters and support keyboard activation and Escape to close.
