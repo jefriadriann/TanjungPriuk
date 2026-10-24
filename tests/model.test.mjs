@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {empty,validate,totals,issues} from '../lib/model.mjs';import handler from '../api/index.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {empty,validate,totals,issues} from '../lib/model.mjs';import handler from '../api/workspace.mjs';
 function tx(){return {id:'test-1',plate:'B 9322 UOM',date:'2026-10-24',period:'Oktober 2026',description:'Order',type:'Pemasukan',category:'Pendapatan',customer:'Uji',rit:1,income:150000,expense:0};}
 test('missing amounts stay unresolved; known amounts sum once',()=>{const a=tx(),b={...tx(),id:'two',income:null};assert.deepEqual(totals([a,b]),{income:150000,expense:0,rit:2});assert.equal(issues(b),true);assert.equal(b.income,null);});
 test('schema rejects duplicates, negative amounts and impossible dates',()=>{const s=empty();s.transactions=[tx()];assert.equal(validate(s),s);s.transactions.push(tx());assert.throws(()=>validate(s));s.transactions=[{...tx(),income:-1}];assert.throws(()=>validate(s));s.transactions=[{...tx(),date:'2026-02-31'}];assert.throws(()=>validate(s));});
