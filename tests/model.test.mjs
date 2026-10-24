@@ -19,3 +19,5 @@ const authEnvNames=['APP_ORIGIN','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','AUTH
 let savedAuthEnv;
 beforeEach(()=>{savedAuthEnv=Object.fromEntries(authEnvNames.map(k=>[k,process.env[k]]));for(const k of authEnvNames)delete process.env[k];});
 afterEach(()=>{for(const k of authEnvNames){if(savedAuthEnv[k]===undefined)delete process.env[k];else process.env[k]=savedAuthEnv[k];}});
+
+test('monthly review notes distinguish fleet-wide and individual truck scopes',()=>{const s=empty();const note=(id,plate)=>({id,month:'2026-10',...(plate?{plate}:{}),notes:'Synthetic review',preparedBy:'Tester',status:'Draft'});s.monthlyReports=[note('all'),note('truck1','B 9322 UOM'),note('truck2','B 9794 TM')];assert.doesNotThrow(()=>validate(s));s.monthlyReports.push(note('duplicate','B 9322 UOM'));assert.throws(()=>validate(s));s.monthlyReports=[note('invalid','UNKNOWN')];assert.throws(()=>validate(s));});

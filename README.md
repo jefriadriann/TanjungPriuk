@@ -27,7 +27,7 @@ Choose a month, truck and client to see recorded income, rit and contributing tr
 
 ## Monthly report
 
-The report includes categorized recorded income/expenses, prior-month figures when available, client contribution, vehicle totals, completeness notes, reviewer notes and preparer. Choose **Cetak / PDF** to use the browser print dialog, or export the month's transactions to CSV.
+The report includes categorized recorded income/expenses, prior-month figures when available, client contribution, vehicle totals, completeness notes, reviewer notes and preparer. Choose a month and **Truk laporan** (one truck or all trucks), then **Cetak / Simpan PDF** and select Save as PDF in the browser dialog. The report includes matching transaction descriptions, totals, and prior-month comparisons. CSV export uses the same month/truck filter. Monthly review notes are saved separately for each truck and for the fleet-wide report; in browser mode these notes remain in that browser.
 
 Month attribution uses a real transaction date first, then an exact single-month source label for undated records. Undated combined periods (e.g. two months) remain outside individual monthly reports. Weekly reports require actual transaction dates and use a 7-day half-open interval.
 

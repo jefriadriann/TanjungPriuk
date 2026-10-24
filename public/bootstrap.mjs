@@ -1,4 +1,4 @@
-import {empty,normalize,validate,clientKey} from './domain.mjs';
+import {empty,normalize,validate,clientKey,monthlyReportKey} from './domain.mjs';
 export const WORKSPACE_KEY='tanjung-priok-workspace-v1';
 export const IMPORT_KEY='tanjung-priok-public-import-v1';
 export function importInitialData(storage,incoming){
@@ -9,7 +9,7 @@ export function importInitialData(storage,incoming){
  const hadRecords=current.transactions.length||current.trips.length;
  for(const key of ['transactions','trips','reports','monthlyReports']){
   const ids=new Set(next[key].map(x=>x.id));
-  for(const row of incoming[key]||[]){if(!ids.has(row.id)&&!(key==='monthlyReports'&&next[key].some(x=>x.month===row.month))){next[key].push(row);ids.add(row.id);}}
+  for(const row of incoming[key]||[]){if(!ids.has(row.id)&&!(key==='monthlyReports'&&next[key].some(x=>monthlyReportKey(x)===monthlyReportKey(row)))){next[key].push(row);ids.add(row.id);}}
  }
  const clients=new Set(next.clients.map(x=>clientKey(x.name)));
  for(const row of incoming.clients||[]){if(!clients.has(clientKey(row.name))){next.clients.push(row);clients.add(clientKey(row.name));}}
