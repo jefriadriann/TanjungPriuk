@@ -12,7 +12,7 @@ export function monthKey(t){return t.date?t.date.slice(0,7):periodKey(t.period);
 export const dateIssue=t=>Boolean(t.date&&(t.date>today()||(periodKey(t.period)&&periodKey(t.period)!==t.date.slice(0,7))));
 export function defaultReportMonth(state){return availableMonths(state).filter(k=>k<=today().slice(0,7)).at(-1)||today().slice(0,7);}
 export function previousMonth(k){const d=new Date(k+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-1);return d.toISOString().slice(0,7);}
-export function totals(rows){return rows.reduce((a,t)=>({income:a.income+(t.income??0),expense:a.expense+(t.expense??0),rit:a.rit+(t.rit||0),count:a.count+1,missing:a.missing+Number(t.income===null||t.expense===null)}),{income:0,expense:0,rit:0,count:0,missing:0});}
+export function totals(rows){return rows.reduce((a,t)=>({income:a.income+(t.income??0),expense:a.expense+(t.expense??0),rit:a.rit+(t.type==='Pemasukan'?(t.rit||0):0),count:a.count+1,missing:a.missing+Number(t.income===null||t.expense===null)}),{income:0,expense:0,rit:0,count:0,missing:0});}
 export const issues=t=>dateIssue(t)||!t.date||t.income===null||t.expense===null||t.category==='Perlu cek'||(t.type==='Pemasukan'&&!clientKey(t.customer));
 export function selectRows(state,{month='all',plate='all',client='all'}={}){return state.transactions.filter(t=>(month==='all'||month==='unassigned'&&!monthKey(t)||monthKey(t)===month)&&(plate==='all'||t.plate===plate)&&(client==='all'||clientKey(t.customer)===client));}
 export function availableMonths(state){return [...new Set(state.transactions.map(monthKey).filter(Boolean))].sort();}
