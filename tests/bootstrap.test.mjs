@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {importInitialData,WORKSPACE_KEY,IMPORT_KEY} from '../public/bootstrap.mjs';
+import {empty} from '../public/domain.mjs';
+const row=(id)=>({id,plate:'B 9322 UOM',date:null,period:'September 2026',description:'Synthetic fixture',type:'Pengeluaran',category:'Oli',customer:'',rit:0,income:0,expense:100});
+function storage(){const map=new Map();return {getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)};}
+test('initial data populates a fresh browser and is saved before import marker',()=>{const s=storage(),incoming=empty();incoming.transactions=[row('source-1')];const result=importInitialData(s,incoming);assert.equal(result.transactions.length,1);assert.equal(JSON.parse(s.getItem(WORKSPACE_KEY)).transactions.length,1);assert.equal(s.getItem(IMPORT_KEY),'loaded');});
+test('initial data preserves browser edits and prevents duplicate source rows',()=>{const s=storage(),existing=empty(),incoming=empty();existing.transactions=[row('own-1'),{...row('source-1'),description:'Edited locally'}];s.setItem(WORKSPACE_KEY,JSON.stringify(existing));incoming.transactions=[row('source-1'),row('source-2')];importInitialData(s,incoming);const result=importInitialData(s,incoming);assert.equal(result.transactions.length,3);assert.equal(result.transactions.find(x=>x.id==='source-1').description,'Edited locally');});
+test('quota failure does not mark initial import complete',()=>{const s=storage();s.setItem=()=>{throw Error('Quota');};assert.throws(()=>importInitialData(s,empty()),/Quota/);assert.equal(s.getItem(IMPORT_KEY),null);});

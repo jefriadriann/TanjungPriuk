@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import handler from '../api/workspace.mjs';
 import {empty} from '../public/domain.mjs';
 const originalFetch=globalThis.fetch;
-const names=['APP_ORIGIN','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','AUTH_ALLOWED_EMAILS','REQUIRE_EMAIL_LOGIN','VERCEL','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN'];
+const names=['APP_ORIGIN','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','AUTH_ALLOWED_EMAILS','REQUIRE_EMAIL_LOGIN','VERCEL','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN','PUBLIC_EXCEL_IMPORT'];
 const original=Object.fromEntries(names.map(n=>[n,process.env[n]]));
 afterEach(()=>{globalThis.fetch=originalFetch;for(const n of names){if(original[n]===undefined)delete process.env[n];else process.env[n]=original[n];}});
 function setup(){process.env.APP_ORIGIN='https://fleet.example.com';process.env.SUPABASE_URL='https://auth.example.com';process.env.SUPABASE_PUBLISHABLE_KEY='public-test-key';process.env.AUTH_ALLOWED_EMAILS='admin@example.com';}
@@ -24,3 +24,5 @@ test('authenticated writes still enforce origin and domain validation',async()=>
 test('logout clears both HttpOnly cookies',async()=>{setup();const r=await request('logout',{method:'POST'});assert.equal(r.statusCode,200);assert.equal(r.headers['Set-Cookie'].length,2);for(const c of r.headers['Set-Cookie'])assert.match(c,/Max-Age=0; Secure/);});
 
 test('temporary open mode only permits browser storage, never server financial data',async()=>{setup();process.env.REQUIRE_EMAIL_LOGIN='0';process.env.VERCEL='1';delete process.env.UPSTASH_REDIS_REST_URL;delete process.env.UPSTASH_REDIS_REST_TOKEN;const status=await request('status');assert.equal(status.body.authenticated,true);assert.equal(status.body.access,'browser');assert.equal((await request('state')).statusCode,503);assert.equal((await request('state',{method:'PUT',body:empty()})).statusCode,503);process.env.UPSTASH_REDIS_REST_URL='https://redis.example.com';process.env.UPSTASH_REDIS_REST_TOKEN='test';assert.equal((await request('state')).statusCode,401);delete process.env.VERCEL;delete process.env.UPSTASH_REDIS_REST_URL;delete process.env.UPSTASH_REDIS_REST_TOKEN;assert.equal((await request('state')).statusCode,401);});
+
+test('public initial data requires explicit flag and is read-only',async()=>{setup();process.env.VERCEL='1';process.env.REQUIRE_EMAIL_LOGIN='0';delete process.env.UPSTASH_REDIS_REST_URL;delete process.env.UPSTASH_REDIS_REST_TOKEN;delete process.env.PUBLIC_EXCEL_IMPORT;assert.equal((await request('initial-data')).statusCode,503);process.env.PUBLIC_EXCEL_IMPORT='1';globalThis.fetch=async url=>{assert.match(String(url),/\/rest\/v1\/tp_public_import/);return response([{state:empty()}]);};assert.equal((await request('initial-data')).body.version,1);assert.equal((await request('initial-data',{method:'PUT',body:empty()})).statusCode,503);assert.equal((await request('status')).body.publicImport,true);});

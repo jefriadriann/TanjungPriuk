@@ -50,3 +50,7 @@ Import jefriadriann/TanjungPriuk, preset Other. The repository sets the build co
 Optional shared storage variables: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. Do not expose their values in client JavaScript or GitHub.
 
 Manual operational updates include vehicle status, assigned driver, service/document dates and trip status. GPS, invoices/receivables and granular user roles are outside this version.
+
+## Optional public initial dataset
+
+With explicit permission to publish financial records, `PUBLIC_EXCEL_IMPORT=1` may enable automatic initial data loading in Vercel browser mode (`REQUIRE_EMAIL_LOGIN=0`, no Redis). The API reads the `initial` row of Supabase `public.tp_public_import` through its publishable key. This dataset is publicly readable; anonymous writes must be revoked and RLS must allow only SELECT. Keep records out of Git and static assets. The browser merges source IDs once without overwriting existing edits; subsequent changes stay in that browser. Without this flag, no public source dataset is fetched. Table creation and data publication require separate explicit authorization for the destination.

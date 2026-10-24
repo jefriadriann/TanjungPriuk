@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import {publicImport} from '../lib/public-import.mjs';
 import {config,identity,authAction,sameOrigin} from '../lib/auth.mjs';
 import {cloud,load,save} from '../lib/store.mjs';
 import {validate,normalize} from '../lib/model.mjs';
@@ -10,7 +11,8 @@ export default async function handler(req,res){
   const storage=cloud()?'cloud':process.env.VERCEL?'browser':'local';
   // Temporary open access is restricted to browser storage; server data stays protected.
   if(storage==='browser'&&process.env.REQUIRE_EMAIL_LOGIN==='0'){
-   if(action==='status'&&req.method==='GET')return send(200,{configured:true,access:'browser',storage,authenticated:true});
+   if(action==='status'&&req.method==='GET')return send(200,{configured:true,access:'browser',storage,authenticated:true,publicImport:process.env.PUBLIC_EXCEL_IMPORT==='1'});
+   if(action==='initial-data'&&req.method==='GET'&&process.env.PUBLIC_EXCEL_IMPORT==='1')return send(200,await publicImport());
    return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
   }
   if(['login','logout','auth-callback'].includes(action))return await authAction(req,res,action,send);
