@@ -1,21 +1,31 @@
-import {createHmac,timingSafeEqual,scryptSync,randomUUID} from 'node:crypto';import {cloud,load,save,redis} from '../lib/store.mjs';import {validate} from '../lib/model.mjs';
-function sign(v){return createHmac('sha256',process.env.SESSION_SECRET).update(v).digest('hex');}
-function equal(a,b){const x=Buffer.from(a),y=Buffer.from(b);return x.length===y.length&&timingSafeEqual(x,y);}
-function authed(req){if(process.env.LOCAL_PREVIEW==='1'&&!process.env.VERCEL)return true;const c=req.headers.cookie?.match(/(?:^|; )tp_session=([^;]+)/)?.[1];if(!c)return false;const [exp,mac]=c.split('.');return /^\d+$/.test(exp)&&Number(exp)>Date.now()&&equal(sign(exp),mac||'');}
-const tries=new Map();
-export default async function handler(req,res){res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');const send=(status,body)=>{res.statusCode=status;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(body));};try{
- const action=new URL(req.url,'http://localhost').searchParams.get('action')||'state';const configured=Boolean(process.env.APP_PASSWORD?.length>=12&&process.env.SESSION_SECRET?.length>=32);const preview=process.env.LOCAL_PREVIEW==='1'&&!process.env.VERCEL;
- if(action==='status'&&req.method==='GET')return send(200,{configured:configured||preview,storage:cloud()?'cloud':process.env.VERCEL?'missing':'local',authenticated:(configured||preview)&&authed(req)});
- if(!configured&&!preview)return send(503,{error:'Atur APP_PASSWORD (minimal 12 karakter) dan SESSION_SECRET (minimal 32 karakter) di Vercel.'});
- if(!['GET','POST','PUT'].includes(req.method))return send(405,{error:'Metode tidak didukung.'});
- if(req.method!=='GET'){const origin=req.headers.origin;const host=req.headers['x-forwarded-host']||req.headers.host;if(origin&&new URL(origin).host!==host)return send(403,{error:'Asal permintaan tidak valid.'});if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'Gunakan JSON.'});}
- let body=req.body;if(req.method!=='GET'&&body===undefined){let raw='';for await(const c of req){raw+=c;if(Buffer.byteLength(raw)>2500000)return send(413,{error:'Data terlalu besar.'});}body=JSON.parse(raw||'{}');}if(typeof body==='string')body=JSON.parse(body);
- if(action==='login'&&req.method==='POST'){
- const ip=String(req.headers['x-forwarded-for']||req.socket?.remoteAddress||'unknown').split(',')[0];const k='tp:login:'+createHmac('sha256',process.env.SESSION_SECRET).update(ip).digest('hex').slice(0,24);let count;
- if(cloud()){count=await redis(['INCR',k]);if(count===1)await redis(['EXPIRE',k,900]);}else{const p=tries.get(k);const next=p&&p.until>Date.now()?{...p,n:p.n+1}:{n:1,until:Date.now()+900000};tries.set(k,next);count=next.n;}
- if(count>10)return send(429,{error:'Terlalu banyak percobaan. Coba lagi 15 menit.'});if(typeof body?.password!=='string'||body.password.length>256||!equal(scryptSync(body.password,'tp-login-v1',32),scryptSync(process.env.APP_PASSWORD,'tp-login-v1',32)))return send(401,{error:'Kata sandi salah.'});
- const exp=String(Date.now()+8*3600000);res.setHeader('Set-Cookie',`tp_session=${exp}.${sign(exp)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${process.env.VERCEL?'; Secure':''}`);return send(200,{ok:true});}
- if(!authed(req))return send(401,{error:'Silakan masuk kembali.'});if(action==='logout'&&req.method==='POST'){res.setHeader('Set-Cookie','tp_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return send(200,{ok:true});}
- if(action==='state'&&req.method==='GET')return send(200,await load());
- if(action==='state'&&req.method==='PUT'){const current=await load();validate(body);if(body.revision!==current.revision)return send(409,{error:'Data berubah di perangkat lain. Muat ulang sebelum menyimpan.'});const next={...body,revision:current.revision+1,updatedAt:new Date().toISOString(),audit:[{id:randomUUID(),at:new Date().toISOString(),action:'Pembaruan workspace',transactions:body.transactions.length,trips:body.trips.length},...(current.audit||[])].slice(0,100)};if(!await save(next,current.revision))return send(409,{error:'Data berubah di perangkat lain. Muat ulang sebelum menyimpan.'});return send(200,next);}
- return send(404,{error:'Tidak ditemukan.'});}catch(e){return send(e instanceof SyntaxError?400:500,{error:e.message||'Terjadi kesalahan.'});}}
+import {randomUUID} from 'node:crypto';
+import {cloud,load,save} from '../lib/store.mjs';
+import {validate,normalize} from '../lib/model.mjs';
+export default async function handler(req,res){
+ res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
+ const send=(code,body)=>{res.statusCode=code;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(body));};
+ try{
+  const action=new URL(req.url,'http://localhost').searchParams.get('action')||'state';
+  const storage=cloud()?'cloud':process.env.VERCEL?'browser':'local';
+  if(action==='status'&&req.method==='GET')return send(200,{configured:true,access:'open',storage,authenticated:true});
+  if(!['GET','PUT'].includes(req.method))return send(405,{error:'Metode tidak didukung.'});
+  if(storage==='browser')return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
+  if(req.method==='PUT'){
+   const origin=req.headers.origin,host=req.headers['x-forwarded-host']||req.headers.host;
+   if(origin&&new URL(origin).host!==host)return send(403,{error:'Asal permintaan tidak valid.'});
+   if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'Gunakan JSON.'});
+  }
+  if(action==='state'&&req.method==='GET')return send(200,normalize(await load()));
+  if(action==='state'&&req.method==='PUT'){
+   let body=req.body;
+   if(body===undefined){let raw='';for await(const c of req){raw+=c;if(Buffer.byteLength(raw)>2500000)return send(413,{error:'Data terlalu besar.'});}body=JSON.parse(raw||'{}');}
+   if(typeof body==='string')body=JSON.parse(body);
+   if(Buffer.byteLength(JSON.stringify(body))>2500000)return send(413,{error:'Data terlalu besar.'});
+   try{validate(body);}catch(e){return send(422,{error:e.message});}
+   const current=await load();if(body.revision!==current.revision)return send(409,{error:'Ada perubahan baru. Muat ulang data sebelum menyimpan.'});
+   const next={...normalize(body),revision:current.revision+1,updatedAt:new Date().toISOString(),audit:[{id:randomUUID(),at:new Date().toISOString(),action:'Pembaruan workspace',transactions:body.transactions.length,trips:body.trips.length},...(current.audit||[])].slice(0,100)};
+   if(!await save(next,current.revision))return send(409,{error:'Ada perubahan baru. Muat ulang data sebelum menyimpan.'});return send(200,next);
+  }
+  return send(404,{error:'Tidak ditemukan.'});
+ }catch(e){return send(e instanceof SyntaxError?400:500,{error:e.message||'Penyimpanan gagal dihubungi.'});}
+}

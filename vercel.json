@@ -4,7 +4,7 @@
   "functions": {
     "api/workspace.mjs": {
       "maxDuration": 30,
-      "includeFiles": "lib/**"
+      "includeFiles": "{lib/**,public/domain.mjs}"
     }
   },
   "headers": [

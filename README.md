@@ -1,50 +1,52 @@
 # Tanjung Priok — Fleet & Finance
 
-Dashboard internal trucking berbahasa Indonesia. Node.js 22+, tanpa dependency runtime tambahan.
+Internal trucking monitoring: client-first analytics, transactions, fleet, trips, weekly reporting and printable monthly financial summaries. Node.js 22+, no runtime dependencies.
 
-## Fitur
+## Current access and storage
 
-Ringkasan keuangan, filter periode/armada, komposisi biaya, input/edit transaksi, peninjauan data tidak lengkap, pencarian, ekspor CSV, cadangan JSON, impor dengan deduplikasi ID, status armada, driver, jadwal servis/dokumen, trip manual, laporan mingguan dan riwayat penyimpanan.
+Login/password has been removed at the owner's request.
 
-## Lokal
+- Vercel without Redis: the app works immediately using localStorage in the visitor's browser. Data is not shared across devices or uploaded to a public asset. Import your private JSON conversion from **Impor data**. Export **Data & cadangan > Unduh cadangan** regularly, especially before clearing site data or switching devices.
+- Local Node server: ignored `.local/data.json` stores data on the computer. Set VERCEL=1 locally to test browser storage behavior.
+- Optional Upstash Redis: setting both REST variables activates a shared workspace. **Without login, everyone who can access the URL can read and change that shared data.** Reintroduce suitable access controls before using shared storage for confidential financial data.
+- Browser cache JSON is validated before use. Failed quota writes leave the previous state intact. Revision checks reject stale writes; cloud updates use atomic Redis compare-and-set. localStorage revision checks are best-effort across tabs and do not replace a multi-user database.
 
-Salin `.env.example` ke `.env.local`. Isi APP_PASSWORD (minimal 12 karakter) dan SESSION_SECRET (minimal 32 karakter acak).
+Financial source records must never be committed to this public repository or put in public/ or dist/. The private import file is supplied separately.
 
-```
-node --env-file=.env.local server.mjs
-```
+## Client analytics
 
-Buka http://127.0.0.1:3100. Tanpa Redis, data lokal ada di `.local/data.json` yang diabaikan Git. LOCAL_PREVIEW=1 melewati login hanya pada server lokal loopback dan selalu diabaikan di Vercel.
+Choose a month, truck and client to see recorded income, rit and contributing trucks. Client names are grouped case-insensitively with whitespace normalized. Create a client profile with contact/PIC and notes. New income entries require a client; expense links are optional. Unassigned shared vehicle costs are never allocated to a client without explicit input.
 
-## Deploy Vercel
+## Transactions
 
-1. Import repository `jefriadriann/TanjungPriuk`. Framework: **Other**. Build: `node scripts/build.mjs`. Output: `dist`.
-2. Hubungkan database **Upstash Redis** milik bisnis melalui Vercel Marketplace atau Upstash. Gunakan penyimpanan permanen, bukan database sementara.
-3. Isi environment variables: APP_PASSWORD, SESSION_SECRET, UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN. Jangan bagikan nilainya di chat atau commit ke GitHub.
-4. Deploy/redeploy, lalu login memakai kata sandi tim.
-5. Buka **Data & pengaturan > Impor data JSON**, pilih file konversi privat yang disediakan terpisah.
-6. Uji tambah transaksi dan refresh dari perangkat lain. Unduh cadangan rutin.
+- Income categories: Pendapatan angkutan, Sewa armada, Pendapatan lain.
+- Expense categories: Solar / BBM, Tol & parkir, Uang jalan, Servis & sparepart, Ban, Oli, Garasi, Administrasi, Biaya lain, Perlu cek.
+- Switching transaction type changes the category choices immediately. Domain/server validation rejects mismatched categories.
+- Legacy Excel categories Pendapatan and Solar remain importable and display under the new corresponding labels.
+- Missing dates and amounts remain missing, distinct from zero. Future dates or date/month-label conflicts are flagged for review; they are never silently corrected.
 
-Data keuangan asli sengaja tidak disertakan di repo public ini. Jangan menaruhnya di public/, dist/, atau Git. API membutuhkan autentikasi; penyimpanan Vercel menolak fallback ke file sementara.
+## Monthly report
 
-## Definisi & batas versi pertama
+The report includes categorized recorded income/expenses, prior-month figures when available, client contribution, vehicle totals, completeness notes, reviewer notes and preparer. Choose **Cetak / PDF** to use the browser print dialog, or export the month's transactions to CSV.
 
-- Impor menggunakan baris transaksi, tanpa subtotal/dashboard untuk mencegah penghitungan ganda.
-- Tanggal/nominal kosong tetap null. Periode gabungan Excel dipertahankan dan tidak dipecah secara rekaan.
-- Ringkasan menjumlahkan nominal yang diketahui; data yang kosong tetap ditandai untuk dilengkapi.
-- Selisih tercatat bukan laba bersih akuntansi atau saldo kas. Tidak mencakup transaksi yang belum dicatat, piutang, utang, atau saldo awal.
-- Laporan mingguan menjumlahkan transaksi bertanggal selama 7 hari sejak tanggal awal. Transaksi tanpa tanggal tidak disertakan. Laporan mengikuti perubahan data, belum berupa pembukuan yang dikunci.
-- Rit historis dan trip operasional adalah ukuran terpisah dan tidak dijumlahkan.
-- Status armada/trip diperbarui manual. Belum termasuk GPS, invoice/piutang, peran per pengguna, atau buku besar akuntansi.
-- Kata sandi dibagikan untuk tim internal; seluruh pengguna yang masuk dapat membaca/memperbarui. Riwayat mencatat penyimpanan workspace tanpa identitas per pengguna.
-- Rotasi APP_PASSWORD dan SESSION_SECRET bersamaan untuk mengakhiri semua sesi.
-- Database menyimpan satu dokumen workspace dengan pemeriksaan revisi atomik. Untuk banyak pengguna/transaksi atau peran granular, migrasikan ke database relasional dan autentikasi per pengguna.
+Month attribution uses a real transaction date first, then an exact single-month source label for undated records. Undated combined periods (e.g. two months) remain outside individual monthly reports. Weekly reports require actual transaction dates and use a 7-day half-open interval.
 
-## Verifikasi
+Reports sum known amounts and follow current records. Review status is a review marker, not an immutable accounting close. Recorded difference is not accounting net profit or cash balance; opening balances, receivables, payables, tax/depreciation adjustments and unrecorded items are not inferred. No formal balance sheet or complete accounting ledger is implemented.
+
+## Run and verify
 
 ```
+node server.mjs
 node --test tests/*.test.mjs
 node scripts/build.mjs
 ```
 
-[Vercel Node Functions](https://vercel.com/docs/functions/runtimes/node-js) · [Upstash REST API](https://upstash.com/docs/redis/features/restapi)
+Local URL: http://127.0.0.1:3100. Set PORT to use a different port.
+
+## Vercel
+
+Import jefriadriann/TanjungPriuk, preset Other. The repository sets the build command, dist output, static root rewrite and .mjs API entrypoint in vercel.json. Push main to trigger automatic deployment. No login or database environment variables are required for browser mode.
+
+Optional shared storage variables: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. Do not expose their values in client JavaScript or GitHub.
+
+Manual operational updates include vehicle status, assigned driver, service/document dates and trip status. GPS, invoices/receivables and granular user roles are outside this version.
