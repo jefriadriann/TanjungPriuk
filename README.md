@@ -4,12 +4,12 @@ Internal trucking monitoring: client-first analytics, transactions, fleet, trips
 
 ## Current access and storage
 
-Login/password has been removed at the owner's request.
+Login uses a one-time email link through Supabase Auth. Only confirmed email addresses in `AUTH_ALLOWED_EMAILS` can access the workspace API. Missing auth configuration denies access. See [email login setup](docs/email-login.md) before deployment.
 
-- Vercel without Redis: the app works immediately using localStorage in the visitor's browser. Data is not shared across devices or uploaded to a public asset. Import your private JSON conversion from **Impor data**. Export **Data & cadangan > Unduh cadangan** regularly, especially before clearing site data or switching devices.
-- Local Node server: ignored `.local/data.json` stores data on the computer. Set VERCEL=1 locally to test browser storage behavior.
-- Optional Upstash Redis: setting both REST variables activates a shared workspace. **Without login, everyone who can access the URL can read and change that shared data.** Reintroduce suitable access controls before using shared storage for confidential financial data.
-- Browser cache JSON is validated before use. Failed quota writes leave the previous state intact. Revision checks reject stale writes; cloud updates use atomic Redis compare-and-set. localStorage revision checks are best-effort across tabs and do not replace a multi-user database.
+- Vercel without Redis: authenticated users use localStorage in their browser. This data is not shared across devices. Logging out does not erase previously downloaded browser data; use trusted devices and export backups regularly.
+- Local Node server: ignored `.local/data.json` stores private data on the machine. Local development also requires auth configuration. The app does not automatically load `.env` files; use exported variables or `node --env-file=.env.local server.mjs`.
+- Optional Upstash Redis: both REST variables activate a shared workspace. Email authentication applies to all workspace reads and writes. All approved users currently have the same read/write access; there is no separate admin role.
+- Sessions last at most one hour, then require another email login. Browser cache revision checks are best-effort across tabs; Redis updates use atomic compare-and-set.
 
 Financial source records must never be committed to this public repository or put in public/ or dist/. The private import file is supplied separately.
 
@@ -45,7 +45,7 @@ Local URL: http://127.0.0.1:3100. Set PORT to use a different port.
 
 ## Vercel
 
-Import jefriadriann/TanjungPriuk, preset Other. The repository sets the build command, dist output, static root rewrite and .mjs API entrypoint in vercel.json. Push main to trigger automatic deployment. No login or database environment variables are required for browser mode.
+Import jefriadriann/TanjungPriuk, preset Other. The repository sets the build command, dist output, static root rewrite and .mjs API entrypoint in vercel.json. Push main to trigger automatic deployment. Configure the email login variables and Supabase settings described in docs/email-login.md. Database variables remain optional for browser mode.
 
 Optional shared storage variables: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN. Do not expose their values in client JavaScript or GitHub.
 

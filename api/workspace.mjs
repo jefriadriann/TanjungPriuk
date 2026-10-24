@@ -1,18 +1,23 @@
 import {randomUUID} from 'node:crypto';
+import {config,identity,authAction,sameOrigin} from '../lib/auth.mjs';
 import {cloud,load,save} from '../lib/store.mjs';
 import {validate,normalize} from '../lib/model.mjs';
 export default async function handler(req,res){
- res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
+ res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');
  const send=(code,body)=>{res.statusCode=code;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(body));};
  try{
   const action=new URL(req.url,'http://localhost').searchParams.get('action')||'state';
   const storage=cloud()?'cloud':process.env.VERCEL?'browser':'local';
-  if(action==='status'&&req.method==='GET')return send(200,{configured:true,access:'open',storage,authenticated:true});
+  if(['login','logout','auth-callback'].includes(action))return await authAction(req,res,action,send);
+  const auth=config();
+  const user=await identity(req,auth);
+  if(action==='status'&&req.method==='GET')return send(200,{configured:Boolean(auth),access:'email',storage,authenticated:Boolean(user),email:user?.email});
+  if(!auth)return send(503,{error:'Login belum dikonfigurasi. Hubungi administrator.'});
+  if(!user)return send(401,{error:'Silakan masuk melalui link email.'});
   if(!['GET','PUT'].includes(req.method))return send(405,{error:'Metode tidak didukung.'});
   if(storage==='browser')return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
   if(req.method==='PUT'){
-   const origin=req.headers.origin,host=req.headers['x-forwarded-host']||req.headers.host;
-   if(origin&&new URL(origin).host!==host)return send(403,{error:'Asal permintaan tidak valid.'});
+   if(!sameOrigin(req,auth))return send(403,{error:'Asal permintaan tidak valid.'});
    if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{error:'Gunakan JSON.'});
   }
   if(action==='state'&&req.method==='GET')return send(200,normalize(await load()));
