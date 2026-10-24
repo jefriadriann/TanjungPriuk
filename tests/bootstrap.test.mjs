@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {importInitialData,WORKSPACE_KEY,IMPORT_KEY} from '../public/bootstrap.mjs';
+import {importInitialData,WORKSPACE_KEY,IMPORT_KEY,repairSeptemberYear} from '../public/bootstrap.mjs';
 import {empty} from '../public/domain.mjs';
 const row=(id)=>({id,plate:'B 9322 UOM',date:null,period:'September 2026',description:'Synthetic fixture',type:'Pengeluaran',category:'Oli',customer:'',rit:0,income:0,expense:100});
 function storage(){const map=new Map();return {getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v)};}
@@ -8,3 +8,5 @@ test('initial data preserves browser edits and prevents duplicate source rows',(
 test('quota failure does not mark initial import complete',()=>{const s=storage();s.setItem=()=>{throw Error('Quota');};assert.throws(()=>importInitialData(s,empty()),/Quota/);assert.equal(s.getItem(IMPORT_KEY),null);});
 
 test('import keeps distinct truck reviews in the same month',()=>{const s=storage(),existing=empty(),incoming=empty();const note=(id,plate)=>({id,month:'2026-10',plate,notes:'Synthetic review',preparedBy:'Tester',status:'Draft'});existing.monthlyReports=[note('all','all')];s.setItem(WORKSPACE_KEY,JSON.stringify(existing));incoming.monthlyReports=[note('truck1','B 9322 UOM'),note('truck2','B 9794 TM')];const result=importInitialData(s,incoming);assert.equal(result.monthlyReports.length,3);});
+
+test('September year repair preserves amounts and user edits and only increments revision once',()=>{const s=storage(),data=empty();data.transactions=[{...row('typo'),date:'2027-09-04',description:'User edited description'}, {...row('already-fixed'),date:'2026-09-05'}, {...row('other-year'),date:'2027-10-04',period:'Oktober 2027'}];s.setItem(WORKSPACE_KEY,JSON.stringify(data));repairSeptemberYear(s);const saved=JSON.parse(s.getItem(WORKSPACE_KEY));assert.equal(saved.transactions[0].date,'2026-09-04');assert.equal(saved.transactions[0].description,'User edited description');assert.equal(saved.transactions[0].expense,100);assert.equal(saved.transactions[2].date,'2027-10-04');assert.equal(saved.revision,1);repairSeptemberYear(s);assert.equal(JSON.parse(s.getItem(WORKSPACE_KEY)).revision,1);});

@@ -21,3 +21,14 @@ export function importInitialData(storage,incoming){
  storage.setItem(IMPORT_KEY,'loaded');
  return next;
 }
+
+// Correct the source workbook's September year typo without replacing browser edits.
+export function repairSeptemberYear(storage){
+ const raw=storage.getItem(WORKSPACE_KEY);if(!raw)return;
+ const current=normalize(JSON.parse(raw));validate(current);
+ const next=structuredClone(current);let changed=0;
+ for(const t of next.transactions){if(t.date?.startsWith('2027-09-')&&t.period==='September 2026'){t.date='2026'+t.date.slice(4);changed++;}}
+ if(!changed)return;
+ next.revision=current.revision+1;next.updatedAt=new Date().toISOString();
+ validate(next);storage.setItem(WORKSPACE_KEY,JSON.stringify(next));
+}
