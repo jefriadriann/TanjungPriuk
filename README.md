@@ -27,7 +27,7 @@ Choose a month, truck and client to see recorded income, rit and contributing tr
 
 ## Monthly report
 
-The report includes categorized recorded income/expenses, prior-month figures when available, client contribution, vehicle totals, completeness notes, reviewer notes and preparer. Choose a month and **Truk laporan** (one truck or all trucks), then **Cetak / Simpan PDF** and select Save as PDF in the browser dialog. The report includes matching transaction descriptions, totals, and prior-month comparisons. CSV export uses the same month/truck filter. Monthly review notes are saved separately for each truck and for the fleet-wide report; in browser mode these notes remain in that browser.
+The report includes categorized recorded income/expenses, prior-month figures when available, client contribution, vehicle totals, completeness notes, reviewer notes and preparer. Choose a month and **Cakupan armada** (one truck or all trucks), then **Cetak / Simpan PDF** and select Save as PDF in the browser dialog. The report includes matching transaction descriptions, totals, and prior-month comparisons. CSV export uses the same month/truck filter. Monthly review notes are saved separately for each truck and for the fleet-wide report; in browser mode these notes remain in that browser.
 
 Month attribution uses a real transaction date first, then an exact single-month source label for undated records. Undated combined periods (e.g. two months) remain outside individual monthly reports. Weekly reports require actual transaction dates and use a 7-day half-open interval.
 
@@ -61,7 +61,7 @@ Click a cost category to inspect its individual expenses in descending amount or
 
 ## Manual spreadsheet entry
 
-Open **Lembar transaksi** for the same eight plate-named sheets and five core columns as the reference workbook: No, Tanggal, Keterangan, Masuk (Rp), Keluar (Rp). Period sections have calculated subtotals. No and subtotal cells are calculated rather than editable Excel formulas.
+Open **Accounting** for the same eight plate-named sheets and five core columns as the reference workbook: No, Tanggal, Keterangan, Masuk (Rp), Keluar (Rp). Period sections have calculated subtotals. No and subtotal cells are calculated rather than editable Excel formulas.
 
 Edit existing rows or use **Tambah baris**. Select a row number/cell for category, client, rit and period fields. New expenses default to **Perlu cek** until categorized; new income requires a client. Dates accept DD/MM/YYYY or YYYY-MM-DD; rupiah values accept integers or grouped thousands. Paste a rectangular range of up to 500 rows from Excel, including the optional No column when starting in Tanggal. Use one of Masuk/Keluar per row. Do not paste subtotal/formula rows as transactions.
 
@@ -70,3 +70,7 @@ Edits remain a draft across sheets and app navigation. **Simpan perubahan** vali
 In the current production browser-storage mode, saving updates only the same browser/device and does not update the public Supabase initial snapshot or synchronize other devices. Download app backups regularly. The supplied Excel is a layout reference; adding this editor does not replace the existing dataset with a new workbook import.
 
 Google sign-in is prepared behind `AUTH_GOOGLE_ENABLED`; see [Google activation](docs/google-login.md). It uses the existing approved-email list, PKCE and server-verified sessions without sending login emails. The provider still needs a Google OAuth Web client before activation. Keep the website in its existing access mode until provider sign-in and data access policies are verified.
+
+## Corporate monthly reporting
+
+Monthly reports use a corporate editorial layout with a company masthead, reporting scope, current/prior-month comparative tables, client revenue contribution, fleet performance, management notes and the complete transaction appendix. The report remains a management summary of recorded transactions; it is not presented as audited financial statements or accounting net profit. Screen labels use Revenue while stored transaction types/categories remain compatible with existing data. Accounting is the entry/editing workspace; the dashboard no longer exposes import/add-transaction shortcuts.
