@@ -1,3 +1,4 @@
+import {controlRequest} from '../lib/rit-control.mjs';
 import {randomUUID} from 'node:crypto';
 import {publicImport} from '../lib/public-import.mjs';
 import {config,identity,authAction,sameOrigin,sessionToken} from '../lib/auth.mjs';
@@ -23,6 +24,10 @@ export default async function handler(req,res){
   if(!user)return send(401,{error:'Silakan masuk melalui link email.'});
   if(!['GET','PUT'].includes(req.method))return send(405,{error:'Metode tidak didukung.'});
   if(action==='initial-data'&&req.method==='GET'&&process.env.PUBLIC_EXCEL_IMPORT==='1')return send(200,await publicImport(sessionToken(req)));
+  if(action==='rit-control'){
+   if(req.method==='PUT'&&(!sameOrigin(req,auth)||!req.headers['content-type']?.startsWith('application/json')))return send(403,{error:'Permintaan tidak valid.'});
+   return await controlRequest(req,auth,user,sessionToken(req),send);
+  }
   if(storage==='browser')return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
   if(req.method==='PUT'){
    if(!sameOrigin(req,auth))return send(403,{error:'Asal permintaan tidak valid.'});

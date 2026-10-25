@@ -4,7 +4,7 @@
   "functions": {
     "api/workspace.mjs": {
       "maxDuration": 30,
-      "includeFiles": "{lib/**,public/domain.mjs}"
+      "includeFiles": "{lib/**,public/domain.mjs,public/rit-control-model.mjs}"
     }
   },
   "headers": [
