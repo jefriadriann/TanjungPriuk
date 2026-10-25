@@ -17,8 +17,8 @@ export function compileSheet(state,rows,baseRevision){
   if(row.isNew&&income===null&&expense===null)problem('expense','Isi nominal Masuk atau Keluar.');
   if(!row.description.trim())problem('description','Keterangan wajib diisi.');
   const type=rowType(row),category=categoryLabel(row.category);
-  if(!categoriesFor(type).includes(category))problem('category','Pilih kategori yang sesuai pemasukan/pengeluaran di detail baris.');
-  if(row.isNew&&type==='Pemasukan'&&!row.customer.trim())problem('customer','Isi klien untuk pemasukan baru di detail baris.');
+  if(!categoriesFor(type).includes(category))problem('category','Pilih kategori yang sesuai Revenue/Expenses di detail baris.');
+  if(row.isNew&&type==='Pemasukan'&&!row.customer.trim())problem('customer','Isi klien untuk Revenue baru di detail baris.');
   const rit=Number(row.rit);if(!Number.isSafeInteger(rit)||rit<0||rit>100000)problem('rit','Rit harus bilangan bulat 0–100000.');
   if(!row.period.trim()||row.period.length>50)problem('period','Isi periode di detail baris, maksimal 50 karakter.');
   const {isNew,...stored}=row;

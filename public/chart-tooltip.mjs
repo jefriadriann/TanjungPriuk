@@ -13,7 +13,7 @@ export function installChartTooltip(root){
  function hide(){if(active)active.removeAttribute('aria-describedby');active=null;tooltip.hidden=true;}
  function show(trigger){
   if(!trigger||!trigger.isConnected||document.querySelector('dialog[open]'))return;
-  const anchor=trigger.getBoundingClientRect(),plot=trigger.closest('.chart-scroll,.client-distribution').getBoundingClientRect();
+  const anchor=trigger.getBoundingClientRect(),plot=trigger.closest('.chart-scroll,.client-distribution,.rit-chart-scroll').getBoundingClientRect();
   if(anchor.bottom<0||anchor.top>window.innerHeight||anchor.right<plot.left||anchor.left>plot.right){hide();return;}
   if(active!==trigger)hide();active=trigger;
   label.textContent=trigger.dataset.tooltipLabel;value.textContent=trigger.dataset.tooltipValue;meta.textContent=trigger.dataset.tooltipMeta||'';meta.hidden=!meta.textContent;tooltip.dataset.tone=trigger.dataset.tooltipTone||trigger.dataset.chartSeries;

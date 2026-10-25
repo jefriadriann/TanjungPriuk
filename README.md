@@ -86,3 +86,9 @@ Driver fields are hidden on fleet cards and the fleet editor. Existing driver da
 ## Company identity
 
 The final company identity follows the supplied PT Rimbang Nabolon Transport logo proposal. See [brand guidance](docs/brand.md). The shared `public/brand.css` stylesheet is loaded last and applies the navy/red palette to every menu, login, dialogs, Accounting and A4 reports, while preserving the distinct menu layouts and green/red financial semantics. Public brand artwork is extracted from the user-supplied proposal; source financial records remain excluded. The existing deployment URL, OAuth callbacks, storage keys, source IDs and database names are intentionally retained for compatibility.
+
+## Fleet rit comparison and financial labels
+
+The business overview financial chart includes a compact line comparison of recorded rit by truck directly below the monthly Revenue/Expenses bars. The horizontal axis identifies trucks, not months. It follows the active period, truck and client filters, highlights the highest recorded rit, and supports hover/focus tooltips plus click/Enter/Space detail dialogs. Small screens can scroll the eight-truck plot horizontally. Rit totals include only Revenue transaction records, including those with unknown amounts; legacy rit on expense records never contributes. Zero means no rit recorded in that scope and is not proof of inactivity.
+
+Visible transaction types, headings, category labels, chart series and CSV exports use Revenue and Expenses consistently. Existing stored Indonesian type/category identifiers and JSON backups are preserved for import/save compatibility; source descriptions are not rewritten.

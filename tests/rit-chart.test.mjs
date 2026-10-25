@@ -1,0 +1,9 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {ritSeries,renderRitChart} from '../public/rit-chart.mjs';
+import {plates,selectRows} from '../public/domain.mjs';
+import {financialLabel} from '../public/labels.mjs';
+const rows=[{plate:plates[0],date:'2026-09-01',type:'Pemasukan',rit:12,income:null},{plate:plates[0],date:'2026-10-01',type:'Pemasukan',rit:20,income:100},{plate:plates[1],date:'2026-10-02',type:'Pemasukan',rit:8,income:200},{plate:plates[0],date:'2026-10-03',type:'Pengeluaran',rit:999,expense:500}];
+test('rit comparison counts only revenue rit, including records with unknown revenue amounts',()=>{const r=ritSeries(rows);assert.equal(r.total,40);assert.equal(r.units.length,8);assert.equal(r.units[0].rit,32);assert.equal(r.units[0].transactions,2);assert.equal(r.leader.plate,plates[0]);assert.equal(r.units[2].rit,0);});
+test('rit chart follows filtered period and truck without inventing fleet activity',()=>{const filtered=selectRows({transactions:rows},{month:'2026-10'});assert.equal(ritSeries(filtered).total,28);assert.equal(ritSeries(filtered,plates[1]).total,8);assert.equal(ritSeries(filtered,plates[1]).units.length,1);assert.equal(ritSeries([],plates[1]).total,0);assert.match(renderRitChart([],plates[1]),/Belum ada rit tercatat/);assert.doesNotMatch(renderRitChart([],plates[1]),/NaN|Infinity/);});
+test('financial presentation consistently maps legacy labels without changing stored identifiers',()=>{assert.equal(financialLabel('Pendapatan angkutan'),'Revenue angkutan');assert.equal(financialLabel('Pemasukan'),'Revenue');assert.equal(financialLabel('Pengeluaran'),'Expenses');assert.equal(financialLabel('PENGELUARAN TERCATAT'),'EXPENSES TERCATAT');assert.equal(financialLabel('Revenue dan Expense'),'Revenue dan Expenses');assert.equal(rows[3].type,'Pengeluaran');});
