@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {publicImport} from '../lib/public-import.mjs';
-import {config,identity,authAction,sameOrigin} from '../lib/auth.mjs';
+import {config,identity,authAction,sameOrigin,sessionToken} from '../lib/auth.mjs';
 import {cloud,load,save} from '../lib/store.mjs';
 import {validate,normalize} from '../lib/model.mjs';
 export default async function handler(req,res){
@@ -15,13 +15,14 @@ export default async function handler(req,res){
    if(action==='initial-data'&&req.method==='GET'&&process.env.PUBLIC_EXCEL_IMPORT==='1')return send(200,await publicImport());
    return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
   }
-  if(['login','logout','auth-callback'].includes(action))return await authAction(req,res,action,send);
+  if(['login','google-login','logout','auth-callback'].includes(action))return await authAction(req,res,action,send);
   const auth=config();
   const user=await identity(req,auth);
-  if(action==='status'&&req.method==='GET')return send(200,{configured:Boolean(auth),access:'email',storage,authenticated:Boolean(user),email:user?.email});
+  if(action==='status'&&req.method==='GET')return send(200,{configured:Boolean(auth),access:'email',storage,authenticated:Boolean(user),email:user?.email,googleLogin:Boolean(auth?.googleEnabled),publicImport:process.env.PUBLIC_EXCEL_IMPORT==='1'});
   if(!auth)return send(503,{error:'Login belum dikonfigurasi. Hubungi administrator.'});
   if(!user)return send(401,{error:'Silakan masuk melalui link email.'});
   if(!['GET','PUT'].includes(req.method))return send(405,{error:'Metode tidak didukung.'});
+  if(action==='initial-data'&&req.method==='GET'&&process.env.PUBLIC_EXCEL_IMPORT==='1')return send(200,await publicImport(sessionToken(req)));
   if(storage==='browser')return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
   if(req.method==='PUT'){
    if(!sameOrigin(req,auth))return send(403,{error:'Asal permintaan tidak valid.'});
