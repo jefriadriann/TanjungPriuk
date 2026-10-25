@@ -14,7 +14,8 @@ Palette: navy `#0c2345`, raised navy `#17365d`, red `#c91920`, light background 
 
 - `public/brand/logo-mark.png`: square extraction of the supplied final mark; the original light background is retained, without redrawing or generating a substitute.
 - `public/brand/logo-lockup.png`: supplied logo and wordmark extraction.
-- `public/brand/logistics-port.jpg`: supplied logistics illustration used on the login screen.
+- `public/brand/logistics-port.jpg`: original supplied logistics illustration retained as a reference.
+- `public/brand/workspace-port-hd.webp`: new AI-generated illustrative port/truck background for the login page, exported as WebP at its native 1672 × 941 resolution. It is brand imagery, not a documentary image of company assets. The supplied final company logo is unchanged.
 - `public/icon.svg`: self-contained compatibility icon embedding the same extracted mark. The main favicon and application imagery use the PNG.
 
 The original PDF contains raster artwork, so these extractions are not vector originals. Do not distort the mark, crop its outer edges, or recolour its red/navy shapes. Display it on a light tile when placed on a dark background. Use the company name in full in report headers, page metadata and footers.
