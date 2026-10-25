@@ -4,8 +4,8 @@ export const expenseCategories=['Solar / BBM','Tol & parkir','Uang jalan','Biaya
 export const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 export const categoriesFor=type=>type==='Pemasukan'?incomeCategories:expenseCategories;
 export const categoryLabel=c=>c==='Pendapatan'?'Pendapatan angkutan':c==='Solar'?'Solar / BBM':c;
-export const clientKey=v=>{const key=String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('id-ID');return ['sinergi','pt. sinergi bahtera mitra','pt sinergi bahtera mitra','sinergi bahtera mitra'].includes(key)?'sinergi':key;};
-export const clientName=v=>clientKey(v)==='sinergi'?'PT. Sinergi Bahtera Mitra':String(v||'').trim();
+export const clientKey=v=>{const key=String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('id-ID');return ['sinergi','pt. sinergi bahtera mitra','pt sinergi bahtera mitra','sinergi bahtera mitra'].includes(key)?'sinergi':['giant','giant transporter','giant transporter indonesia','pt giant transporter indonesia','pt. giant transporter indonesia'].includes(key)?'giant transporter indonesia':key;};
+export const clientName=v=>clientKey(v)==='sinergi'?'PT. Sinergi Bahtera Mitra':clientKey(v)==='giant transporter indonesia'?'Giant Transporter Indonesia':String(v||'').trim();
 export function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 export function monthLabel(k){if(!/^\d{4}-\d{2}$/.test(k))return k;return `${months[Number(k.slice(5))-1]} ${k.slice(0,4)}`;}
 export function periodKey(period){const p=String(period||'').trim();const i=months.findIndex(m=>new RegExp('^'+m+' \\d{4}$','i').test(p));return i<0?null:p.slice(-4)+'-'+String(i+1).padStart(2,'0');}

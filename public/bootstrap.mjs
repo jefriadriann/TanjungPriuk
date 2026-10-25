@@ -1,6 +1,6 @@
 import {empty,normalize,validate,clientKey,monthlyReportKey} from './domain.mjs';
 export const WORKSPACE_KEY='tanjung-priok-workspace-v1';
-export const IMPORT_KEY='tanjung-priok-source-import-v2';
+export const IMPORT_KEY='tanjung-priok-source-import-v3';
 export function importInitialData(storage,incoming){
  validate(incoming);
  const raw=storage.getItem(WORKSPACE_KEY);
@@ -14,7 +14,7 @@ export function importInitialData(storage,incoming){
   const row=next.transactions.find(t=>t.id===change.id);
   if(!row||!change.before||!change.after)continue;
   const fields=Object.keys(change.after);
-  if(!fields.length||!fields.every(k=>editable.includes(k)&&Object.hasOwn(change.before,k))||!Object.entries(change.before).every(([k,v])=>editable.includes(k)&&row[k]===v))continue;
+  if(!fields.length||!fields.every(k=>editable.includes(k)&&Object.hasOwn(change.before,k))||!Object.entries(change.before).every(([k,v])=>editable.includes(k)&&((k==='customer'?clientKey(row[k])===clientKey(v):row[k]===v)||(Object.hasOwn(change.after,k)&&row[k]===change.after[k]))))continue;
   for(const field of fields)row[field]=change.after[field];
  }
 
