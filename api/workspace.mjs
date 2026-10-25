@@ -9,13 +9,13 @@ export default async function handler(req,res){
  try{
   const action=new URL(req.url,'http://localhost').searchParams.get('action')||'state';
   const storage=cloud()?'cloud':process.env.VERCEL?'browser':'local';
+  if(['login','google-login','logout','auth-callback'].includes(action))return await authAction(req,res,action,send);
   // Temporary open access is restricted to browser storage; server data stays protected.
   if(storage==='browser'&&process.env.REQUIRE_EMAIL_LOGIN==='0'){
-   if(action==='status'&&req.method==='GET')return send(200,{configured:true,access:'browser',storage,authenticated:true,publicImport:process.env.PUBLIC_EXCEL_IMPORT==='1'});
+   if(action==='status'&&req.method==='GET'){const c=config();const user=c?.googleEnabled?await identity(req,c):null;return send(200,{configured:true,access:'browser',storage,authenticated:true,publicImport:process.env.PUBLIC_EXCEL_IMPORT==='1',googleLogin:Boolean(c?.googleEnabled),sessionAuthenticated:Boolean(user),email:user?.email});}
    if(action==='initial-data'&&req.method==='GET'&&process.env.PUBLIC_EXCEL_IMPORT==='1')return send(200,await publicImport());
    return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
   }
-  if(['login','google-login','logout','auth-callback'].includes(action))return await authAction(req,res,action,send);
   const auth=config();
   const user=await identity(req,auth);
   if(action==='status'&&req.method==='GET')return send(200,{configured:Boolean(auth),access:'email',storage,authenticated:Boolean(user),email:user?.email,googleLogin:Boolean(auth?.googleEnabled),publicImport:process.env.PUBLIC_EXCEL_IMPORT==='1'});

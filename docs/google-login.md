@@ -28,3 +28,7 @@ Supply GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET securely in this ta
 The code supports PKCE, a same-origin login start, an HttpOnly verifier cookie, a fixed callback and provider-confirmed email checks. A Google login attempt does not send an email or require SMTP. Existing sessions expire after at most one hour and currently require re-login; automatic long-lived session refresh is not implemented. Do not promise indefinite sessions. Data already downloaded to a browser and previously published data cannot be recalled by changing access policies.
 
 The Google provider was not configured when this feature was prepared. Production remains in its existing public/browser mode until the OAuth credentials and full activation steps are complete.
+
+## Nonblocking sign-in test
+
+Google provider credentials have been applied while preserving the existing Supabase signup restriction. Before enforcing authentication, deploy AUTH_GOOGLE_ENABLED=1 and test `/?login=google` with an actual approved account. The normal homepage stays in its existing public/browser mode during this test. Public status distinguishes `sessionAuthenticated` from the existing open-mode `authenticated` flag; neither the test login button nor a successful test session alone makes the dataset private. Do not revoke anonymous dataset access or set REQUIRE_EMAIL_LOGIN=1 until a real Google callback has been confirmed. If a pre-provisioned account cannot link because of signup policy, diagnose the provider error instead of opening unrestricted registration silently.
