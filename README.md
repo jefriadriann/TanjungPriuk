@@ -1,4 +1,4 @@
-# Tanjung Priok — Fleet & Finance
+# PT Rimbang Nabolon Transport — Fleet & Finance
 
 Internal trucking monitoring: client-first analytics, transactions, fleet, trips, weekly reporting and printable monthly financial summaries. Node.js 22+, no runtime dependencies.
 
@@ -82,3 +82,7 @@ The dashboard uses an interactive revenue donut with exact rupiah amounts and re
 Operations uses locally hosted Leaflet 1.9.4 (license in public/vendor/leaflet/LICENSE) with OpenStreetMap tiles and visible attribution. The map covers North Jakarta and offers a Tanjung Priok focus. Markers/labels are approximate geographic reference points, not live vehicle positions or administrative boundaries. Road tiles require Internet access to tile.openstreetmap.org; if unavailable, the UI retains the coordinate-based reference points and explicitly indicates that street mapping is unavailable. Do not interpret the fallback as a detailed street map. The cloud allowlist addition is saved as a draft until reviewed/published; browser tile loading in production uses the viewer's own network.
 
 Driver fields are hidden on fleet cards and the fleet editor. Existing driver data is retained for compatibility, and trip-specific driver entry is unchanged.
+
+## Company identity
+
+The final company identity follows the supplied PT Rimbang Nabolon Transport logo proposal. See [brand guidance](docs/brand.md). The shared `public/brand.css` stylesheet is loaded last and applies the navy/red palette to every menu, login, dialogs, Accounting and A4 reports, while preserving the distinct menu layouts and green/red financial semantics. Public brand artwork is extracted from the user-supplied proposal; source financial records remain excluded. The existing deployment URL, OAuth callbacks, storage keys, source IDs and database names are intentionally retained for compatibility.
