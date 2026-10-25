@@ -27,7 +27,7 @@ Choose a month, truck and client to see recorded income, rit and contributing tr
 
 ## Monthly report
 
-The report includes categorized recorded income/expenses, prior-month figures when available, client contribution, vehicle totals, completeness notes, reviewer notes and preparer. Choose a month and **Cakupan armada** (one truck or all trucks), then **Cetak / Simpan PDF** and select Save as PDF in the browser dialog. The report includes matching transaction descriptions, totals, and prior-month comparisons. CSV export uses the same month/truck filter. Monthly review notes are saved separately for each truck and for the fleet-wide report; in browser mode these notes remain in that browser.
+The report includes categorized recorded income/expenses, prior-month figures when available, client contribution, vehicle totals, a trailing three-month Revenue/Expense line chart with a data-driven narrative, and preparer. Choose a month and **Cakupan armada** (one truck or all trucks), then **Cetak / Simpan PDF** and select Save as PDF in the browser dialog. The report includes matching transaction descriptions, totals, and prior-month comparisons. CSV export uses the same month/truck filter. Monthly review notes are saved separately for each truck and for the fleet-wide report; in browser mode these notes remain in that browser. Review notes appear only as internal notes above the report on screen and are excluded from PDF. The three-month comparison ends at the selected report month and follows its truck scope; unavailable periods remain gaps, and incomplete nominal values are marked rather than treated as confirmed zeros.
 
 Month attribution uses a real transaction date first, then an exact single-month source label for undated records. Undated combined periods (e.g. two months) remain outside individual monthly reports. Weekly reports require actual transaction dates and use a 7-day half-open interval.
 
@@ -73,7 +73,7 @@ Google sign-in is prepared behind `AUTH_GOOGLE_ENABLED`; see [Google activation]
 
 ## Corporate monthly reporting
 
-Monthly reports use a corporate editorial layout with a company masthead, reporting scope, current/prior-month comparative tables, client revenue contribution, fleet performance, management notes and the complete transaction appendix. The report remains a management summary of recorded transactions; it is not presented as audited financial statements or accounting net profit. Screen labels use Revenue while stored transaction types/categories remain compatible with existing data. Accounting is the entry/editing workspace; the dashboard no longer exposes import/add-transaction shortcuts.
+Monthly reports use a corporate editorial layout with a company masthead, reporting scope, current/prior-month comparative tables, client revenue contribution, fleet performance, a three-month Revenue/Expense comparison and the complete transaction appendix. Empty management-note placeholders, data-quality counts and the extended basis-of-preparation section are omitted from the printable report. The report remains a management summary of recorded transactions; it is not presented as audited financial statements or accounting net profit. Screen labels use Revenue while stored transaction types/categories remain compatible with existing data. Accounting is the entry/editing workspace; the dashboard no longer exposes import/add-transaction shortcuts.
 
 ## Visual analytics and operations map
 
