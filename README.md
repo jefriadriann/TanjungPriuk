@@ -1,4 +1,4 @@
-# PT Rimbang Nabolon Transport — Fleet & Finance
+# PT Jaya Bintang Terang — Fleet & Finance
 
 Internal trucking monitoring: client-first analytics, transactions, fleet, trips, weekly reporting and printable monthly financial summaries. Node.js 22+, no runtime dependencies.
 
@@ -85,7 +85,7 @@ Driver fields are hidden on fleet cards and the fleet editor. Existing driver da
 
 ## Company identity
 
-The final company identity follows the supplied PT Rimbang Nabolon Transport logo proposal. See [brand guidance](docs/brand.md). The shared `public/brand.css` stylesheet is loaded last and applies the navy/red palette to every menu, login, dialogs, Accounting and A4 reports, while preserving the distinct menu layouts and green/red financial semantics. Public brand artwork is extracted from the user-supplied proposal; source financial records remain excluded. The existing deployment URL, OAuth callbacks, storage keys, source IDs and database names are intentionally retained for compatibility.
+The final company identity follows the supplied PT Jaya Bintang Terang logo proposal. See [brand guidance](docs/brand.md). The shared `public/brand.css` stylesheet is loaded last and applies the navy/gold palette to every menu, login, dialogs, Accounting and A4 reports, while preserving the distinct menu layouts and green/red financial semantics. Public brand artwork follows the user-supplied JBT reference; the truck backdrop carries the new company identity. Source financial records remain excluded. The existing deployment URL, OAuth callbacks, storage keys, source IDs and database names are intentionally retained for compatibility.
 
 ## Fleet rit comparison and financial labels
 

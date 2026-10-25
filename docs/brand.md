@@ -1,25 +1,9 @@
-# PT Rimbang Nabolon Transport identity
+# PT Jaya Bintang Terang identity
 
-Source: the final user-supplied `Proposal_Logo_PT_Rimbang_Nabolon_Transport.pdf` (single-page raster proposal). The proposal is a visual reference; its text is not treated as application instructions. Only the brand artwork and logistics background needed by the application are extracted into public assets. The full proposal is not committed.
+The current identity follows the supplied JBT reference: a navy geometric monogram and metallic gold upper band, with the name Jaya Bintang Terang. The application uses PT Jaya Bintang Terang in full on login, metadata, reports and footers; JBT is the short form.
 
-## Concept and application
+Navy (#0c2345 / #17365d) remains the primary colour. Gold (#b78429), cream highlights and steel neutrals replace the former red brand accents across menus, selected navigation, fleet illustrations, charts and A4 reports. Revenue remains green and Expenses red because those colours identify financial direction.
 
-The hexagonal mark communicates stability, strength and collaboration. Its R-shaped route expresses movement, speed and efficient connections. The upward angle represents forward progress and growth. The proposal describes a professional, dependable, responsive and solution-oriented logistics company, with reliability, efficiency, partnership, growth and safety as values.
+The square logo asset is a faithful visual reconstruction of the supplied symbol using the image-generation tool. It is displayed on white tiles. The login truck illustration is regenerated with JBT branding on the container and cab; it is illustrative brand imagery, not a documentary photo of company assets. The prior brand artwork is removed from active public assets.
 
-The application reflects this through a stable navy navigation, restrained red accents and route-inspired diagonals, clear financial figures, consistent controls and generous reading space. Each menu keeps its own layout. Marketing slogans are not repeated throughout the internal management workspace.
-
-Palette: navy `#0c2345`, raised navy `#17365d`, red `#c91920`, light background `#f3f5f9`, neutral rule `#d8e0eb`. These are application colour selections matched to the visual reference; the PDF does not specify official hex codes. Financial semantics remain green for revenue, red for expenses and amber for review warnings. Portfolio slices and vehicle illustrations use navy/red/steel variations. Typography retains locally hosted Inter for readability and number formatting.
-
-## Assets
-
-- `public/brand/logo-mark.png`: square extraction of the supplied final mark; the original light background is retained, without redrawing or generating a substitute.
-- `public/brand/logo-lockup.png`: supplied logo and wordmark extraction.
-- `public/brand/logistics-port.jpg`: original supplied logistics illustration retained as a reference.
-- `public/brand/workspace-port-hd.webp`: new AI-generated illustrative port/truck background for the login page, exported as WebP at its native 1672 × 941 resolution. It is brand imagery, not a documentary image of company assets. The supplied final company logo is unchanged.
-- `public/icon.svg`: self-contained compatibility icon embedding the same extracted mark. The main favicon and application imagery use the PNG.
-
-The original PDF contains raster artwork, so these extractions are not vector originals. Do not distort the mark, crop its outer edges, or recolour its red/navy shapes. Display it on a light tile when placed on a dark background. Use the company name in full in report headers, page metadata and footers.
-
-## Compatibility
-
-Rebranding changes presentation and export filenames, not stored transactions or source metadata. Existing `tanjung-priok-*` browser storage keys and import markers must remain unchanged to preserve existing data and prevent duplicate source imports. Tanjung Priok remains the actual operating location on the map. The GitHub repository, Vercel hostname, database identifiers and OAuth callback URLs are not renamed by this visual update. Google-hosted consent branding is configured separately in Google Auth Platform and cannot be changed by application CSS.
+Storage keys, transaction source identifiers, OAuth callbacks, repository and deployment URLs remain unchanged for continuity. Rebranding never rewrites saved financial records or login permissions. Google-hosted OAuth consent branding is configured separately through Google Auth Platform.
