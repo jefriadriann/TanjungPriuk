@@ -100,3 +100,7 @@ Fleet cards retain their eight distinct vehicle illustrations and choose a scene
 ## Authenticated source refresh
 
 Workbook refreshes are stored only in the protected Supabase source dataset, never Git or static assets. The source-import marker is versioned so existing authenticated browsers fetch the refreshed source once. Existing source IDs remain stable even when Excel rows move. Source corrections include before/after fields and apply only when the browser copy still matches the baseline; manual edits are preserved. Exact matching manually entered transactions are consumed once when matching new source records, preserving local IDs. Repeated loads do not duplicate records. Unmatched old records are retained unless their removal is explicitly reconciled. Financial rows and correction baselines remain private in Supabase; only generic refresh logic is committed.
+
+## Sinergi client identity
+
+Sinergi is displayed as **PT. Sinergi Bahtera Mitra**, with the supplied wordmark visually reproduced as a website asset. Legacy Sinergi and legal-name variants share the stable `sinergi` client key, so historic and newly entered revenue aggregate together. Client logos appear in portfolio cards, profile headers, selected filters, donut legends/detail dialogs and report contribution tables. Stored source descriptions and financial values are preserved; exports and display labels use the legal client name.

@@ -4,7 +4,8 @@ export const expenseCategories=['Solar / BBM','Tol & parkir','Uang jalan','Servi
 export const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 export const categoriesFor=type=>type==='Pemasukan'?incomeCategories:expenseCategories;
 export const categoryLabel=c=>c==='Pendapatan'?'Pendapatan angkutan':c==='Solar'?'Solar / BBM':c;
-export const clientKey=v=>String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('id-ID');
+export const clientKey=v=>{const key=String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('id-ID');return ['sinergi','pt. sinergi bahtera mitra','pt sinergi bahtera mitra','sinergi bahtera mitra'].includes(key)?'sinergi':key;};
+export const clientName=v=>clientKey(v)==='sinergi'?'PT. Sinergi Bahtera Mitra':String(v||'').trim();
 export function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 export function monthLabel(k){if(!/^\d{4}-\d{2}$/.test(k))return k;return `${months[Number(k.slice(5))-1]} ${k.slice(0,4)}`;}
 export function periodKey(period){const p=String(period||'').trim();const i=months.findIndex(m=>new RegExp('^'+m+' \\d{4}$','i').test(p));return i<0?null:p.slice(-4)+'-'+String(i+1).padStart(2,'0');}
@@ -16,7 +17,7 @@ export function totals(rows){return rows.reduce((a,t)=>({income:a.income+(t.inco
 export const issues=t=>dateIssue(t)||!t.date||t.income===null||t.expense===null||t.category==='Perlu cek'||(t.type==='Pemasukan'&&!clientKey(t.customer));
 export function selectRows(state,{month='all',plate='all',client='all'}={}){return state.transactions.filter(t=>(month==='all'||month==='unassigned'&&!monthKey(t)||monthKey(t)===month)&&(plate==='all'||t.plate===plate)&&(client==='all'||clientKey(t.customer)===client));}
 export function availableMonths(state){return [...new Set(state.transactions.map(monthKey).filter(Boolean))].sort();}
-export function clientSummary(rows,masters=[]){const map=new Map();for(const c of masters)map.set(clientKey(c.name),{key:clientKey(c.name),name:c.name,rows:[],plates:new Set()});for(const t of rows){if(!clientKey(t.customer))continue;const key=clientKey(t.customer);if(!map.has(key))map.set(key,{key,name:t.customer.trim(),rows:[],plates:new Set()});const c=map.get(key);c.rows.push(t);c.plates.add(t.plate);}return [...map.values()].map(c=>({...c,...totals(c.rows),plates:[...c.plates],incomeRows:c.rows.filter(t=>t.type==='Pemasukan').length})).sort((a,b)=>b.income-a.income||a.name.localeCompare(b.name));}
+export function clientSummary(rows,masters=[]){const map=new Map();for(const c of masters)map.set(clientKey(c.name),{key:clientKey(c.name),name:clientName(c.name),rows:[],plates:new Set()});for(const t of rows){if(!clientKey(t.customer))continue;const key=clientKey(t.customer);if(!map.has(key))map.set(key,{key,name:clientName(t.customer),rows:[],plates:new Set()});const c=map.get(key);c.rows.push(t);c.plates.add(t.plate);}return [...map.values()].map(c=>({...c,...totals(c.rows),plates:[...c.plates],incomeRows:c.rows.filter(t=>t.type==='Pemasukan').length})).sort((a,b)=>b.income-a.income||a.name.localeCompare(b.name));}
 export function weeklyRows(state,week){const end=new Date(week+'T00:00:00Z');end.setUTCDate(end.getUTCDate()+7);return state.transactions.filter(t=>t.date&&t.date>=week&&t.date<end.toISOString().slice(0,10));}
 export function empty(){return {version:1,revision:0,transactions:[],trips:[],reports:[],clients:[],monthlyReports:[],fleet:plates.map(plate=>({plate,status:'Belum diperbarui',driver:'',serviceDue:'',documentDue:''})),audit:[]};}
 export const monthlyReportKey=r=>r.month+'|'+(r.plate||'all');
