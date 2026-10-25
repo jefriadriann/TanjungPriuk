@@ -104,3 +104,7 @@ Workbook refreshes are stored only in the protected Supabase source dataset, nev
 ## Sinergi client identity
 
 Sinergi is displayed as **PT. Sinergi Bahtera Mitra**, with the supplied wordmark visually reproduced as a website asset. Legacy Sinergi and legal-name variants share the stable `sinergi` client key, so historic and newly entered revenue aggregate together. Client logos appear in portfolio cards, profile headers, selected filters, donut legends/detail dialogs and report contribution tables. Stored source descriptions and financial values are preserved; exports and display labels use the legal client name.
+
+## Confirmed expense classification
+
+TAP 75 is classified as **Biaya Koordinasi** under Expenses. Existing browser records marked Perlu cek are migrated once per changed record with a revision increment; amounts, IDs, dates and rit remain unchanged. New or imported TAP 75 expenses still marked Perlu cek receive the confirmed category during normalization/save. An explicit alternative category is preserved. The protected source dataset is updated separately without publishing records in Git.

@@ -1,6 +1,6 @@
 export const plates=['B 9322 UOM','B 9794 TM','B 9286 JG','T 9186 DC','B 9628 SYL','E 9318 B','B 9635 JV','B 9275 TZ'];
 export const incomeCategories=['Pendapatan angkutan','Sewa armada','Pendapatan lain'];
-export const expenseCategories=['Solar / BBM','Tol & parkir','Uang jalan','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Perlu cek'];
+export const expenseCategories=['Solar / BBM','Tol & parkir','Uang jalan','Biaya Koordinasi','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Perlu cek'];
 export const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 export const categoriesFor=type=>type==='Pemasukan'?incomeCategories:expenseCategories;
 export const categoryLabel=c=>c==='Pendapatan'?'Pendapatan angkutan':c==='Solar'?'Solar / BBM':c;
@@ -21,7 +21,8 @@ export function clientSummary(rows,masters=[]){const map=new Map();for(const c o
 export function weeklyRows(state,week){const end=new Date(week+'T00:00:00Z');end.setUTCDate(end.getUTCDate()+7);return state.transactions.filter(t=>t.date&&t.date>=week&&t.date<end.toISOString().slice(0,10));}
 export function empty(){return {version:1,revision:0,transactions:[],trips:[],reports:[],clients:[],monthlyReports:[],fleet:plates.map(plate=>({plate,status:'Belum diperbarui',driver:'',serviceDue:'',documentDue:''})),audit:[]};}
 export const monthlyReportKey=r=>r.month+'|'+(r.plate||'all');
-export function normalize(s){return {...s,clients:s.clients||[],monthlyReports:s.monthlyReports||[],audit:s.audit||[]};}
+export const isCoordinationExpense=t=>t.type==='Pengeluaran'&&/\btap\s*75\b/i.test(String(t.description||''));
+export function normalize(s){return {...s,transactions:Array.isArray(s.transactions)?s.transactions.map(t=>isCoordinationExpense(t)&&t.category==='Perlu cek'?{...t,category:'Biaya Koordinasi'}:t):s.transactions,clients:s.clients||[],monthlyReports:s.monthlyReports||[],audit:s.audit||[]};}
 function str(v,n=200){return typeof v==='string'&&v.length<=n;}
 function date(v){return str(v,10)&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;}
 function money(v){return Number.isSafeInteger(v)&&v>=0&&v<=1e13;}

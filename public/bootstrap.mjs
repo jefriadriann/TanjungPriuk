@@ -47,3 +47,12 @@ export function repairSeptemberYear(storage){
  next.revision=current.revision+1;next.updatedAt=new Date().toISOString();
  validate(next);storage.setItem(WORKSPACE_KEY,JSON.stringify(next));
 }
+
+// Persist the owner-confirmed TAP 75 classification in existing browser copies.
+export function repairCoordinationCategory(storage){
+ const raw=storage.getItem(WORKSPACE_KEY);if(!raw)return;
+ const current=JSON.parse(raw),next=normalize(current);
+ if(!current.transactions.some((t,i)=>t.category!==next.transactions[i].category))return;
+ next.revision=current.revision+1;next.updatedAt=new Date().toISOString();
+ validate(next);storage.setItem(WORKSPACE_KEY,JSON.stringify(next));
+}
