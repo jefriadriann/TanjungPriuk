@@ -108,3 +108,7 @@ Sinergi is displayed as **PT. Sinergi Bahtera Mitra**, with the supplied wordmar
 ## Confirmed expense classification
 
 TAP 75 is classified as **Biaya Koordinasi** under Expenses. Existing browser records marked Perlu cek are migrated once per changed record with a revision increment; amounts, IDs, dates and rit remain unchanged. New or imported TAP 75 expenses still marked Perlu cek receive the confirmed category during normalization/save. An explicit alternative category is preserved. The protected source dataset is updated separately without publishing records in Git.
+
+## Financial chart reconciliation
+
+Dashboard chart headline totals use exactly the same filtered transactions as the financial cards. All identifiable months are retained, with horizontal scrolling as needed; months beyond six are not silently dropped. Transactions without a single attributable month appear once in a distinct **Gabungan** bucket instead of being excluded or allocated to guessed months. Its detail popup shows the original period labels. Thus monthly bars plus the combined-period bucket reconcile with the filtered Revenue and Expenses totals. Selecting a specific month still includes only that month, while the unassigned-period filter displays only the combined bucket.
