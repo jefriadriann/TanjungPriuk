@@ -15,7 +15,7 @@ Financial source records must never be committed to this public repository or pu
 
 ## Client analytics
 
-Choose a month, truck and client to see recorded income, rit and contributing trucks. Client names are grouped case-insensitively with whitespace normalized. Create a client profile with contact/PIC and notes. New income entries require a client; expense links are optional. Unassigned shared vehicle costs are never allocated to a client without explicit input.
+Choose a month, truck and client to see recorded revenue, rit and contributing trucks. Client profiles use revenue-only monthly bars, revenue-only chart dialogs, and fleet/transaction tables without expense or difference columns. The view excludes expense records even when explicitly linked to the selected client; the dashboard, ledger and management reports retain their financial comparisons. Client names are grouped case-insensitively with whitespace normalized. Create a client profile with contact/PIC and notes. New income entries require a client; expense links are optional. Unassigned shared vehicle costs are never allocated to a client without explicit input.
 
 ## Transactions
 
