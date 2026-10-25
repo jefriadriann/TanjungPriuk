@@ -77,7 +77,7 @@ Monthly reports use a corporate editorial layout with a company masthead, report
 
 ## Visual analytics and operations map
 
-Dashboard and client portfolio use interactive revenue donuts with exact rupiah amounts and reconciled client shares, including unassigned revenue and disclosure of unknown amounts. Chart bars retain clickable monthly details and an explicit scale. Accounting and transaction forms display Indonesian grouped amounts (20.000) while storing validated numeric rupiah values.
+The dashboard uses an interactive revenue donut with exact rupiah amounts and reconciled client shares, including unassigned revenue and disclosure of unknown amounts. The client portfolio focuses on full-width client cards without repeating the dashboard donut. Chart bars retain clickable monthly details and an explicit scale. Accounting and transaction forms display Indonesian grouped amounts (20.000) while storing validated numeric rupiah values.
 
 Operations uses locally hosted Leaflet 1.9.4 (license in public/vendor/leaflet/LICENSE) with OpenStreetMap tiles and visible attribution. The map covers North Jakarta and offers a Tanjung Priok focus. Markers/labels are approximate geographic reference points, not live vehicle positions or administrative boundaries. Road tiles require Internet access to tile.openstreetmap.org; if unavailable, the UI retains the coordinate-based reference points and explicitly indicates that street mapping is unavailable. Do not interpret the fallback as a detailed street map. The cloud allowlist addition is saved as a draft until reviewed/published; browser tile loading in production uses the viewer's own network.
 
