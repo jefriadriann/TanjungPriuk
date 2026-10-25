@@ -58,3 +58,13 @@ With explicit permission to publish financial records, `PUBLIC_EXCEL_IMPORT=1` m
 ## Dashboard details
 
 Click a cost category to inspect its individual expenses in descending amount order, or use the cost panel arrow to inspect all expenses. Unit totals and the unit column appear when all trucks are selected; a single-truck filter omits them. Click either monthly chart bar for full rupiah income/expense values and per-unit totals. Both dialogs respect the active period, truck, and client filters and support keyboard activation and Escape to close.
+
+## Manual spreadsheet entry
+
+Open **Lembar transaksi** for the same eight plate-named sheets and five core columns as the reference workbook: No, Tanggal, Keterangan, Masuk (Rp), Keluar (Rp). Period sections have calculated subtotals. No and subtotal cells are calculated rather than editable Excel formulas.
+
+Edit existing rows or use **Tambah baris**. Select a row number/cell for category, client, rit and period fields. New expenses default to **Perlu cek** until categorized; new income requires a client. Dates accept DD/MM/YYYY or YYYY-MM-DD; rupiah values accept integers or grouped thousands. Paste a rectangular range of up to 500 rows from Excel, including the optional No column when starting in Tanggal. Use one of Masuk/Keluar per row. Do not paste subtotal/formula rows as transactions.
+
+Edits remain a draft across sheets and app navigation. **Simpan perubahan** validates the entire draft and uses the app's existing commit/revision flow, then all dashboard cards, charts and reports read the updated records. **Urungkan** reverses draft edits; **Batalkan draft** discards unsaved changes. An unload warning protects an unsaved draft, but unsaved drafts are not restored after a page reload. Invalid input, a stale workspace revision or a failed storage write keeps the draft for correction.
+
+In the current production browser-storage mode, saving updates only the same browser/device and does not update the public Supabase initial snapshot or synchronize other devices. Download app backups regularly. The supplied Excel is a layout reference; adding this editor does not replace the existing dataset with a new workbook import.
