@@ -1,0 +1,6 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fleetSceneKey,fleetIllustration} from '../public/fleet-scenes.mjs';
+import {plates} from '../public/domain.mjs';
+test('fleet illustrations follow actual vehicle status and keep unknown status distinct from Idle',()=>{assert.equal(fleetSceneKey('Siap jalan'),'ready');assert.equal(fleetSceneKey('Beroperasi'),'road');assert.equal(fleetSceneKey('Servis'),'service');assert.equal(fleetSceneKey('Idle'),'idle');assert.equal(fleetSceneKey('Belum diperbarui'),'parked');assert.equal(fleetSceneKey('<script>'),'parked');assert.equal(fleetSceneKey('constructor'),'parked');});
+test('each scene contains the requested setting without replacing the unit bodywork',()=>{assert.match(fleetIllustration(plates[0],'Siap jalan'),/scene-ready/);assert.match(fleetIllustration(plates[0],'Beroperasi'),/highway-lanes/);assert.match(fleetIllustration(plates[0],'Servis'),/mechanic-arm/);assert.doesNotMatch(fleetIllustration(plates[0],'Idle'),/highway-lanes|mechanic-arm/);const variants=plates.map(plate=>fleetIllustration(plate,'Idle').match(/<g class="truck-load">(.*?)<\/g>/)?.[1]);assert.equal(new Set(variants).size,8);assert.doesNotMatch(fleetIllustration(plates[0],'<script>'),/<script>/);});

@@ -1,0 +1,14 @@
+/* Status-specific logistics scenes. Vehicle variants retain each unit's bodywork. */
+@media screen{
+.fleet-art.fleet-scene{height:auto;min-height:0;aspect-ratio:1.8;padding:0;display:block;border:1px solid #dbe4ef;background:#eaf1f9;overflow:hidden;border-radius:13px}.fleet-scene .logistics-svg{display:block;width:100%;height:100%;max-width:none;overflow:hidden}.fleet-scene .truck-chassis,.fleet-scene .truck-wheel,.fleet-scene .route-dashes,.fleet-scene .route-scenery{animation:none}.scene-ready .scene-vehicle{animation:rnt-ready-creep 4.2s ease-in-out infinite}.scene-ready .truck-wheel{animation:rnt-ready-wheel 4.2s ease-in-out infinite}.scene-road .scene-vehicle{animation:rnt-road-suspension 1.8s ease-in-out infinite}.scene-road .truck-wheel{animation:rnt-road-wheel 1s linear infinite}.scene-road .highway-lanes{animation:rnt-highway-lanes 1.15s linear infinite}.scene-road .highway-skyline{animation:rnt-highway-skyline 22s linear infinite}.scene-service .mechanic-body{transform-origin:263px 172px;animation:rnt-mechanic-lean 2.8s ease-in-out infinite}.scene-service .mechanic-arm{transform-origin:260px 135px;animation:rnt-mechanic-work 1.4s ease-in-out infinite}.scene-service .jack-handle{transform-origin:211px 166px;animation:rnt-jack-adjust 3.2s ease-in-out infinite}.fleet-scene .scene-vehicle,.fleet-scene .truck-wheel,.fleet-scene .mechanic-body,.fleet-scene .mechanic-arm{animation-delay:var(--drive-delay)}.scene-idle *,.scene-parked *{animation:none!important}.fleet-grid.motion-paused .fleet-scene *{animation-play-state:paused!important}
+}
+@keyframes rnt-ready-creep{0%,100%{transform:translateX(-3px)}50%{transform:translateX(6px)}}
+@keyframes rnt-ready-wheel{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(10deg)}}
+@keyframes rnt-road-suspension{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.2px)}}
+@keyframes rnt-road-wheel{to{transform:rotate(360deg)}}
+@keyframes rnt-highway-lanes{to{stroke-dashoffset:53}}
+@keyframes rnt-highway-skyline{to{transform:translateX(-360px)}}
+@keyframes rnt-mechanic-lean{0%,100%{transform:rotate(0)}50%{transform:rotate(-3deg)}}
+@keyframes rnt-mechanic-work{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(9deg)}}
+@keyframes rnt-jack-adjust{0%,70%,100%{transform:rotate(0)}35%{transform:rotate(-7deg)}}
+@media(prefers-reduced-motion:reduce){.fleet-scene *{animation:none!important}.fleet-motion-control{display:none!important}}
