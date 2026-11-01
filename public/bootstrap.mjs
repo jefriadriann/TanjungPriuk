@@ -1,11 +1,18 @@
 import {empty,normalize,validate,clientKey,monthlyReportKey} from './domain.mjs';
 export const WORKSPACE_KEY='tanjung-priok-workspace-v1';
+export const QUERY1_KEY='tanjung-priok-query1-v1';
 export const IMPORT_KEY='tanjung-priok-source-import-v3';
 export function importInitialData(storage,incoming){
  validate(incoming);
  const raw=storage.getItem(WORKSPACE_KEY);
  const current=raw?normalize(JSON.parse(raw)):empty();validate(current);
  const next=structuredClone(current);
+ if(incoming.sourceUpdates?.query1){
+  // Query1 replaces imported workbook rows; retain manual entries and a complete backup.
+  if(raw&&!storage.getItem('tanjung-priok-before-query1'))storage.setItem('tanjung-priok-before-query1',raw);
+  const ids=new Set(incoming.transactions.map(t=>t.id));
+  next.transactions=next.transactions.filter(t=>!t.source||t.source.sheet==='Query1'&&ids.has(t.id));
+ }
  const hadRecords=current.transactions.length||current.trips.length;
  const editable=['date','period','description','income','expense','rit','customer','category'];
  // Source corrections apply only while every corrected field still matches its old value.
@@ -34,6 +41,7 @@ export function importInitialData(storage,incoming){
  // Keep the previous browser copy if validation or quota writes fail.
  storage.setItem(WORKSPACE_KEY,JSON.stringify(next));
  storage.setItem(IMPORT_KEY,'loaded');
+ if(incoming.sourceUpdates?.query1)storage.setItem(QUERY1_KEY,'loaded');
  return next;
 }
 

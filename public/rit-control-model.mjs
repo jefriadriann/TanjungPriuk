@@ -1,4 +1,4 @@
-import {plates,clientKey,today} from './domain.mjs';
+import {plates,clientKey,today,isTravelCash} from './domain.mjs';
 export const emptyControl=()=>({version:1,revision:0,owners:['','',''],packages:[],audit:[]});
 const fail=message=>{throw Error(message);};
 const text=(v,max=200)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
@@ -7,7 +7,7 @@ const date=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.pa
 export function evidenceUrl(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&u.href.length<=1500;}catch{return false;}}
 export function sourceSignature(t){return JSON.stringify([t.id,t.plate,t.type,t.date,t.period,t.description,clientKey(t.customer),t.rit,t.income,t.expense,t.category]);}
 export function packageSummary(p,state){
- const verified=p.proofs.filter(x=>x.status==='verified').length,pending=p.proofs.filter(x=>x.status==='pending').length;
+ const verified=p.proofs.filter(x=>x.status==='verified').length+(p.actuals||[]).reduce((n,x)=>n+x.rit,0),pending=p.proofs.filter(x=>x.status==='pending').length;
  const cash=p.payments.reduce((n,x)=>n+x.amount,0),previous=state.packages.find(x=>x.id===p.carryFrom),carry=previous?.closed?.balance||0;
  const funded=cash+carry,accounted=verified*p.rate,balance=Math.max(0,funded-accounted),shortfall=Math.max(0,accounted-funded);
  const reported=p.reportedRit??null,claimGap=reported===null?0:Math.max(0,reported-verified);
@@ -20,8 +20,9 @@ export function validateControl(s){
  if(!s||s.version!==1||!integer(s.revision)||!Array.isArray(s.owners)||s.owners.length!==3||s.owners.some(x=>typeof x!=='string'||x.length>100)||!Array.isArray(s.packages)||s.packages.length>2000||!Array.isArray(s.audit))fail('Format kontrol rit tidak valid.');
  const ids=new Set(),refs=new Set(),fundingRefs=new Set(),usedSources=new Map(),carryUsed=new Set();
  for(const p of s.packages){
-  if(!text(p.id,100)||ids.has(p.id)||!text(p.name)||!plates.includes(p.plate)||!text(p.driver)||!text(p.customer)||!date(p.date)||!integer(p.target,100)||!p.target||!integer(p.rate,1e9)||!p.rate||!text(p.owner,100)||!Array.isArray(p.sources)||!Array.isArray(p.payments)||!Array.isArray(p.proofs)||p.sources.length>300||p.proofs.length>300||p.payments.length>100)fail('Paket rit tidak valid.');
+  if(!text(p.id,100)||ids.has(p.id)||!text(p.name)||!plates.includes(p.plate)||!(p.simple?typeof p.driver==='string':text(p.driver))||!(p.simple?typeof p.customer==='string':text(p.customer))||!date(p.date)||!integer(p.target,100)||!p.target||!integer(p.rate,1e9)||!p.rate||!(p.simple?typeof p.owner==='string':text(p.owner,100))||!Array.isArray(p.sources)||!Array.isArray(p.payments)||!Array.isArray(p.proofs)||p.sources.length>300||p.proofs.length>300||p.payments.length>100)fail('Paket rit tidak valid.');
   ids.add(p.id);
+  if(p.actuals!==undefined&&(!Array.isArray(p.actuals)||p.actuals.length>300||p.actuals.some(x=>!text(x.id,100)||!integer(x.rit,100)||!x.rit||!date(x.date)||!text(x.description,500)||!text(x.by)||!text(x.at))||packageSummary(p,s).verified>p.target))fail('Catatan rit selesai tidak valid.');
   for(const s of p.sources){const t=s.row;if(!t||!text(t.id,100)||t.plate!==p.plate||t.type!=='Pemasukan'||clientKey(t.customer)!==clientKey(p.customer)||!integer(t.rit,100000)||!integer(s.rit,t.rit)||!s.rit)fail('Sumber revenue tidak sesuai paket.');const old=usedSources.get(t.id)||{capacity:0,rit:0};old.capacity=Math.max(old.capacity,t.rit);old.rit+=s.rit;usedSources.set(t.id,old);}
   if(p.reportedRit!==undefined&&p.reportedRit!==null&&!integer(p.reportedRit,p.target))fail('Jumlah rit dilaporkan tidak valid.');
   if(p.sources.reduce((n,s)=>n+s.rit,0)>p.target)fail('Rit sumber melebihi target paket.');
@@ -41,17 +42,36 @@ export function applyControlCommand(current,command,{actor,id,at,transactions}){
  const next=structuredClone(current),c=command,p=next.packages.find(x=>x.id===c.packageId);
  const snapshot=key=>transactions.find(t=>t.id===key);
  const addSources=(packageItem,allocations)=>{if(!Array.isArray(allocations)||allocations.length>300)fail('Pilih sumber transaksi yang valid.');for(const a of allocations){const row=snapshot(a.id);if(!row)fail('Sumber transaksi tidak ditemukan. Muat ulang Accounting.');if(!integer(a.rit,row.rit)||allocatedRit(next,row.id)+(next.packages.includes(packageItem)?0:packageItem.sources.filter(s=>s.row.id===row.id).reduce((n,s)=>n+s.rit,0))+a.rit>row.rit)fail('Rit sumber sudah digunakan paket lain.');const existing=packageItem.sources.find(s=>s.row.id===row.id);if(existing){if(sourceSignature(existing.row)!==sourceSignature(row))fail('Cocokkan sumber yang berubah sebelum menambah alokasi.');existing.rit+=a.rit;}else packageItem.sources.push({row:structuredClone(row),rit:a.rit});}};
- if(c.type==='owners'){if(!Array.isArray(c.names)||c.names.length!==3||c.names.some(x=>!text(x,100)))fail('Isi nama ketiga owner.');if(new Set(c.names.map(x=>x.trim().toLowerCase())).size!==3)fail('Nama ketiga owner harus berbeda.');next.owners=c.names.map(x=>x.trim());}
+ if(c.type==='sync-funding'){
+  for(const t of transactions.filter(isTravelCash)){
+   if(!date(t.date)||t.date>today())continue;
+   const existing=next.packages.find(x=>x.payments.some(pay=>pay.sourceId===t.id));
+   if(existing){if(!existing.closed){const pay=existing.payments.find(x=>x.sourceId===t.id);if(pay.amount!==t.expense||pay.date!==t.date){existing.paymentHistory=[...(existing.paymentHistory||[]),{...pay,changedAt:at,changedBy:actor}];pay.amount=t.expense;pay.date=t.date;}}continue;}
+   const target=Math.min(100,Math.max(1,Number(t.description.match(/(\d+)\s*rit\b/i)?.[1])||5));
+   const created={id:'cash-'+t.id,simple:true,name:t.description,plate:t.plate,driver:'',customer:'',owner:'',date:t.date,target,rate:Number.isSafeInteger(t.expense/target)?t.expense/target:200000,sources:[],payments:[{id:'payment-'+t.id,amount:t.expense,date:t.date,reference:'Buku transaksi · '+t.id,sourceId:t.id,by:actor,at}],proofs:[],actuals:[],carryFrom:'',createdBy:actor,createdAt:at,closed:null};
+   if(next.packages.some(x=>x.id===created.id))continue;next.packages.push(created);
+  }
+ }else if(c.type==='owners'){if(!Array.isArray(c.names)||c.names.length!==3||c.names.some(x=>!text(x,100)))fail('Isi nama ketiga owner.');if(new Set(c.names.map(x=>x.trim().toLowerCase())).size!==3)fail('Nama ketiga owner harus berbeda.');next.owners=c.names.map(x=>x.trim());}
  else if(c.type==='create'){
-  if(!next.owners.includes(c.owner)||!c.owner)fail('Pilih owner penanggung jawab.');
-  if(next.packages.some(x=>!x.closed&&x.plate===c.plate))fail('Selesaikan paket aktif armada ini sebelum membuat paket berikutnya.');
-  const created={id,name:c.name,plate:c.plate,driver:c.driver?.trim(),customer:c.customer,date:c.date,target:c.target,rate:c.rate,owner:c.owner,sources:[],payments:[],proofs:[],carryFrom:c.carryFrom||'',createdBy:actor,createdAt:at,closed:null};addSources(created,c.sources||[]);next.packages.push(created);
+  if(!c.simple&&(!next.owners.includes(c.owner)||!c.owner))fail('Pilih owner penanggung jawab.');
+  if(!c.simple&&next.packages.some(x=>!x.closed&&x.plate===c.plate))fail('Selesaikan paket aktif armada ini sebelum membuat paket berikutnya.');
+  const created={id,simple:Boolean(c.simple),name:c.name,plate:c.plate,driver:c.driver?.trim()||'',customer:c.customer||'',date:c.date,target:c.target,rate:c.rate,owner:c.owner||'',sources:[],payments:[],proofs:[],carryFrom:c.carryFrom||'',createdBy:actor,createdAt:at,closed:null};addSources(created,c.sources||[]);next.packages.push(created);
  }else{
   if(!p)fail('Paket tidak ditemukan.');if(p.closed)fail('Paket sudah diselesaikan dan dikunci.');
-  if(c.type==='sources')addSources(p,c.sources);
+  if(c.type==='record-rit'){
+   if(!integer(c.rit,100)||!c.rit||!date(c.date)||c.date<p.date||c.date>today()||!text(c.description,500))fail('Isi tanggal, uraian, dan jumlah rit selesai yang valid.');
+   if(packageSummary(p,next).verified+c.rit>p.target)fail('Rit selesai melebihi target.');
+   p.actuals=[...(p.actuals||[]),{id,rit:c.rit,date:c.date,description:c.description,by:actor,at}];
+  }else if(c.type==='void-rit'){
+   const entry=(p.actuals||[]).find(x=>x.id===c.entryId);if(!entry||!text(c.note,1000))fail('Isi alasan koreksi rit.');
+   p.voidedActuals=[...(p.voidedActuals||[]),{...entry,voidedBy:actor,voidedAt:at,note:c.note}];p.actuals=p.actuals.filter(x=>x.id!==c.entryId);
+  }else if(c.type==='edit-simple'){
+   if(!text(c.name)||!integer(c.target,100)||!c.target||!integer(c.rate,1e9)||!c.rate||c.target<packageSummary(p,next).verified)fail('Uraian, target, atau tarif rit tidak valid.');
+   p.settingsHistory=[...(p.settingsHistory||[]),{name:p.name,target:p.target,rate:p.rate,by:actor,at}];Object.assign(p,{name:c.name,target:c.target,rate:c.rate});
+  }else if(c.type==='sources')addSources(p,c.sources);
   else if(c.type==='fund'){
    let amount=c.amount,reference=c.reference,dateValue=c.date;
-   if(c.sourceId){const row=snapshot(c.sourceId);if(!row||row.type!=='Pengeluaran'||row.category!=='Uang jalan'||row.plate!==p.plate||!row.expense)fail('Pilih transaksi Uang jalan pada armada yang sama.');amount=row.expense;reference='Accounting · '+row.id;dateValue=row.date;if(!dateValue)fail('Lengkapi tanggal transaksi di Accounting terlebih dahulu.');}
+   if(c.sourceId){const row=snapshot(c.sourceId);if(!row||!isTravelCash(row)||row.plate!==p.plate||!row.expense)fail('Pilih transaksi Uang jalan pada armada yang sama.');amount=row.expense;reference='Accounting · '+row.id;dateValue=row.date;if(!dateValue)fail('Lengkapi tanggal transaksi di Accounting terlebih dahulu.');}
    if(dateValue>today())fail('Tanggal transfer belum terjadi. Periksa tanggal Accounting.');
    p.payments.push({id,amount,date:dateValue,reference,sourceId:c.sourceId||'',by:actor,at});
   }else if(c.type==='claim'){
@@ -78,10 +98,12 @@ export function applyControlCommand(current,command,{actor,id,at,transactions}){
   }else if(c.type==='close'){
    const summary=packageSummary(p,next);if(summary.pending)fail('Tinjau seluruh surat jalan sebelum penyelesaian.');if(summary.shortfall)fail('Uang jalan terverifikasi melebihi dana. Lengkapi pendanaan sebelum penyelesaian.');if(!text(c.note,1000))fail('Isi catatan penyelesaian, terutama jika target belum tercapai.');
    if(sourceConflicts(p,transactions).length)fail('Sumber revenue berubah. Sesuaikan data Accounting dengan sumber paket sebelum penyelesaian.');
-   for(const payment of p.payments.filter(x=>x.sourceId)){const t=snapshot(payment.sourceId);if(!t||t.plate!==p.plate||t.type!=='Pengeluaran'||t.category!=='Uang jalan'||t.expense!==payment.amount||t.date!==payment.date)fail('Sumber kasbon berubah. Periksa transaksi Accounting terlebih dahulu.');}
+   for(const payment of p.payments.filter(x=>x.sourceId)){const t=snapshot(payment.sourceId);if(!t||t.plate!==p.plate||!isTravelCash(t)||t.expense!==payment.amount||t.date!==payment.date)fail('Sumber kasbon berubah. Periksa transaksi Accounting terlebih dahulu.');}
    p.closed={by:actor,at,note:c.note,balance:summary.balance};
   }else fail('Aksi kontrol tidak dikenal.');
  }
  next.revision=current.revision+1;next.updatedAt=at;next.audit=[{id,at,by:actor,type:c.type,packageId:p?.id||(c.type==='create'?id:'')},...next.audit].slice(0,300);
  return validateControl(next);
 }
+
+export function fundingNeedsSync(control,transactions){return transactions.filter(isTravelCash).some(t=>{if(!date(t.date)||t.date>today())return false;const p=control.packages.find(p=>p.payments.some(x=>x.sourceId===t.id));if(!p)return !control.packages.some(p=>p.id==='cash-'+t.id);const pay=p.payments.find(x=>x.sourceId===t.id);return !p.closed&&(pay.amount!==t.expense||pay.date!==t.date);});}

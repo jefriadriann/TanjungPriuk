@@ -1,9 +1,9 @@
 export const plates=['B 9322 UOM','B 9794 TM','B 9286 JG','T 9186 DC','B 9628 SYL','E 9318 B','B 9635 JV','B 9275 TZ'];
 export const incomeCategories=['Pendapatan angkutan','Sewa armada','Pendapatan lain'];
-export const expenseCategories=['Solar / BBM','Tol & parkir','Uang jalan','Biaya Koordinasi','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Perlu cek'];
+export const expenseCategories=['Solar / BBM','Tol & parkir','Uang jalan','Biaya Koordinasi','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Bagi Hasil','Langganan','Perlu cek'];
 export const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 export const categoriesFor=type=>type==='Pemasukan'?incomeCategories:expenseCategories;
-export const categoryLabel=c=>c==='Pendapatan'?'Pendapatan angkutan':c==='Solar'?'Solar / BBM':c;
+export const categoryLabel=c=>c==='Pemasukan'?'Pendapatan angkutan':c==='Bagi hasil'?'Bagi Hasil':c==='Uang Jalan'?'Uang jalan':c==='Service & Sparepart'?'Servis & sparepart':c==='Lainnya'?'Biaya lain':c==='Pendapatan'?'Pendapatan angkutan':c==='Solar'?'Solar / BBM':c;
 export const clientKey=v=>{const key=String(v||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('id-ID');return ['sinergi','pt. sinergi bahtera mitra','pt sinergi bahtera mitra','sinergi bahtera mitra'].includes(key)?'sinergi':['giant','giant transporter','giant transporter indonesia','pt giant transporter indonesia','pt. giant transporter indonesia'].includes(key)?'giant transporter indonesia':key;};
 export const clientName=v=>clientKey(v)==='sinergi'?'PT. Sinergi Bahtera Mitra':clientKey(v)==='giant transporter indonesia'?'Giant Transporter Indonesia':String(v||'').trim();
 export function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
@@ -22,6 +22,11 @@ export function weeklyRows(state,week){const end=new Date(week+'T00:00:00Z');end
 export function empty(){return {version:1,revision:0,transactions:[],trips:[],reports:[],clients:[],monthlyReports:[],fleet:plates.map(plate=>({plate,status:'Belum diperbarui',driver:'',serviceDue:'',documentDue:''})),audit:[]};}
 export const monthlyReportKey=r=>r.month+'|'+(r.plate||'all');
 export const isCoordinationExpense=t=>t.type==='Pengeluaran'&&/\btap\s*75\b/i.test(String(t.description||''));
+export const canonicalPlate=p=>p==='B 9186 JG'?'B 9286 JG':p;
+export const displayPlate=p=>p==='B 9286 JG'?'B 9186 JG':p;
+export const isProfitShare=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)==='Bagi Hasil';
+export const isTravelCash=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)==='Uang jalan'&&t.expense>0;
+export function fleetTotals(rows){const shares=rows.filter(isProfitShare),costs=rows.filter(t=>t.type==='Pengeluaran'&&!isProfitShare(t));return {income:shares.reduce((n,t)=>n+(t.expense||0),0),expense:totals(costs).expense,rit:totals(rows).rit};}
 export function normalize(s){return {...s,transactions:Array.isArray(s.transactions)?s.transactions.map(t=>isCoordinationExpense(t)&&t.category==='Perlu cek'?{...t,category:'Biaya Koordinasi'}:t):s.transactions,clients:s.clients||[],monthlyReports:s.monthlyReports||[],audit:s.audit||[]};}
 function str(v,n=200){return typeof v==='string'&&v.length<=n;}
 function date(v){return str(v,10)&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;}
