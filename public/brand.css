@@ -49,3 +49,7 @@ body{background:#f3f5f9;color:#213854}body:before{background:linear-gradient(90d
 .client-report-identity{display:flex;gap:12px;align-items:center}.corporate-report .client-logo{width:86px;height:31px;padding:4px 6px}.client-filter-logo{width:100px;height:35px}@media print{.corporate-report .client-logo{width:65px;height:24px;padding:3px}.client-report-identity{gap:8px}}
 /* The combined-period bucket reconciles all records without inventing dates. */
 .analytic-chart .chart-combined .bar{background:repeating-linear-gradient(135deg,#288461 0 6px,#66ad8e 6px 10px)}.analytic-chart .chart-combined .bar.out{background:repeating-linear-gradient(135deg,#b52630 0 6px,#db858b 6px 10px)}.analytic-chart .chart-combined small{font-weight:650;color:#59697e}.analytic-chart .chart-combined{border-left:1px dashed #bfcddd;padding-left:10px}
+/* Blue accent for the Expenses card in Ringkasan Bisnis. */
+.page-dashboard .stats > .stat:nth-child(2):before{background:#2563eb}
+.page-dashboard .stats > .stat:nth-child(2) > strong{color:#2563eb!important}
+.page-dashboard .stats > .stat:nth-child(2) .stat-icon{background:#eff6ff;color:#2563eb}
