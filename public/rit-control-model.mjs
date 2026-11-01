@@ -59,6 +59,7 @@ export function applyControlCommand(current,command,{actor,id,at,transactions}){
  }else{
   if(!p)fail('Paket tidak ditemukan.');if(p.closed)fail('Paket sudah diselesaikan dan dikunci.');
   if(c.type==='record-rit'){
+   if(c.plate!==undefined&&c.plate!==p.plate)fail('Pilih uang jalan pada armada yang sama.');
    if(!integer(c.rit,100)||!c.rit||!date(c.date)||c.date<p.date||c.date>today()||!text(c.description,500))fail('Isi tanggal, uraian, dan jumlah rit selesai yang valid.');
    if(packageSummary(p,next).verified+c.rit>p.target)fail('Rit selesai melebihi target.');
    p.actuals=[...(p.actuals||[]),{id,rit:c.rit,date:c.date,description:c.description,by:actor,at}];
