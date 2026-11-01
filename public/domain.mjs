@@ -1,6 +1,6 @@
 export const plates=['B 9322 UOM','B 9794 TM','B 9286 JG','T 9186 DC','B 9628 SYL','E 9318 B','B 9635 JV','B 9275 TZ'];
 export const incomeCategories=['Pendapatan angkutan','Sewa armada','Pendapatan lain'];
-export const expenseCategories=['Uang jalan','Biaya Koordinasi','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Bagi Hasil','Langganan','Gaji pegawai'];
+export const expenseCategories=['Uang jalan','Biaya Koordinasi','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Bagi Hasil','Langganan','Gaji pegawai','Operasional'];
 export const legacyExpenseCategories=['Solar / BBM','Tol & parkir','Perlu cek'];
 export const transactionCategories=(type,current='')=>{const values=categoriesFor(type);return type==='Pengeluaran'&&legacyExpenseCategories.includes(categoryLabel(current))?[categoryLabel(current),...values]:values;};
 export const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -20,7 +20,8 @@ export const issues=t=>dateIssue(t)||!t.date||t.income===null||t.expense===null|
 export function selectRows(state,{month='all',plate='all',client='all'}={}){return state.transactions.filter(t=>(month==='all'||month==='unassigned'&&!monthKey(t)||monthKey(t)===month)&&(plate==='all'||plate==='global'&&t.plate===''||t.plate===plate)&&(client==='all'||clientKey(t.customer)===client));}
 // Business revenue is global even when older imports retained a vehicle identifier.
 export function selectBookRows(state,{month='all',plate='all',client='all'}={}){return selectRows(state,{month,client}).filter(t=>plate==='all'||(plate==='global'?t.type==='Pemasukan':t.type==='Pengeluaran'&&t.plate===plate));}
-export function fleetLedgerRows(rows){return rows.filter(t=>t.type==='Pengeluaran').map(t=>isProfitShare(t)?{...t,type:'Pemasukan',income:t.expense,expense:0}:{...t,rit:0});}
+export const isFleetTransaction=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)!=='Uang jalan';
+export function fleetLedgerRows(rows){return rows.filter(isFleetTransaction).map(t=>isProfitShare(t)?{...t,type:'Pemasukan',income:t.expense,expense:0}:{...t,rit:0});}
 export function availableMonths(state){return [...new Set(state.transactions.map(monthKey).filter(Boolean))].sort();}
 export function clientSummary(rows,masters=[]){const map=new Map();for(const c of masters)map.set(clientKey(c.name),{key:clientKey(c.name),name:clientName(c.name),rows:[],plates:new Set()});for(const t of rows){if(!clientKey(t.customer))continue;const key=clientKey(t.customer);if(!map.has(key))map.set(key,{key,name:clientName(t.customer),rows:[],plates:new Set()});const c=map.get(key);c.rows.push(t);if(t.plate)c.plates.add(t.plate);}return [...map.values()].map(c=>({...c,...totals(c.rows),plates:[...c.plates],incomeRows:c.rows.filter(t=>t.type==='Pemasukan').length})).sort((a,b)=>b.income-a.income||a.name.localeCompare(b.name));}
 export function weeklyRows(state,week){const end=new Date(week+'T00:00:00Z');end.setUTCDate(end.getUTCDate()+7);return state.transactions.filter(t=>t.date&&t.date>=week&&t.date<end.toISOString().slice(0,10));}
@@ -32,7 +33,7 @@ export const displayPlate=p=>!p?'Global':p==='B 9286 JG'?'B 9186 JG':p;
 export const isProfitShare=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)==='Bagi Hasil';
 export const isTravelCash=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)==='Uang jalan'&&t.expense>0;
 export const recordedRit=rows=>rows.filter(isProfitShare).reduce((n,t)=>n+(t.rit||0),0);
-export function fleetTotals(rows){const shares=rows.filter(isProfitShare),costs=rows.filter(t=>t.type==='Pengeluaran'&&!isProfitShare(t));return {income:shares.reduce((n,t)=>n+(t.expense||0),0),expense:totals(costs).expense,rit:recordedRit(rows)};}
+export function fleetTotals(rows){const shares=rows.filter(isProfitShare),costs=rows.filter(t=>isFleetTransaction(t)&&!isProfitShare(t));return {income:shares.reduce((n,t)=>n+(t.expense||0),0),expense:totals(costs).expense,rit:recordedRit(rows)};}
 export function normalize(s){return {...s,transactions:Array.isArray(s.transactions)?s.transactions.map(t=>isCoordinationExpense(t)&&t.category==='Perlu cek'?{...t,category:'Biaya Koordinasi'}:t):s.transactions,clients:s.clients||[],monthlyReports:s.monthlyReports||[],audit:s.audit||[]};}
 function str(v,n=200){return typeof v==='string'&&v.length<=n;}
 function date(v){return str(v,10)&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;}
