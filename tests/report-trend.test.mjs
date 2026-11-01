@@ -5,7 +5,7 @@ const row=(date,type,value,plate='A')=>({date,period:'',plate,type,income:type==
 test('report trend follows three calendar months across years and truck scope',()=>{
  const state={transactions:[row('2025-11-02','Pemasukan',100),row('2025-12-02','Pengeluaran',40),row('2026-01-02','Pemasukan',200),row('2026-01-03','Pemasukan',900,'B'),{...row(null,'Pemasukan',999),period:'November–Desember 2025'}]};
  const points=reportTrend(state,'2026-01','A');
- assert.deepEqual(points.map(p=>p.month),['2025-11','2025-12','2026-01']);assert.deepEqual(points.map(p=>p.income),[100,0,200]);assert.equal(points[1].expense,40);assert.equal(reportTrend(state,'2026-01')[2].income,1100);
+ assert.deepEqual(points.map(p=>p.month),['2025-11','2025-12','2026-01']);assert.deepEqual(points.map(p=>p.income),[null,0,null]);assert.equal(points[1].expense,40);assert.equal(reportTrend(state,'2026-01')[2].income,1100);
 });
 test('missing periods and unknown nominal stay gaps; genuine zero remains zero',()=>{
  const points=reportTrend({transactions:[row('2026-09-02','Pemasukan',null),row('2026-10-02','Pemasukan',0)]},'2026-10');

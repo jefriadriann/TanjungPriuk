@@ -14,6 +14,7 @@ export function importInitialData(storage,incoming){
   next.transactions=next.transactions.filter(t=>!t.source||t.source.sheet==='Query1'&&ids.has(t.id));
  }
  const hadRecords=current.transactions.length||current.trips.length;
+ for(const vehicle of incoming.fleet)if(!next.fleet.some(f=>f.plate===vehicle.plate))next.fleet.push(structuredClone(vehicle));
  const editable=['date','period','description','income','expense','rit','customer','category'];
  // Source corrections apply only while every corrected field still matches its old value.
  // Browser edits, locally added transactions and vehicle status remain untouched.

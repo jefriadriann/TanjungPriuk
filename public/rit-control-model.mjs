@@ -1,4 +1,4 @@
-import {plates,clientKey,today,isTravelCash} from './domain.mjs';
+import {validPlate,plates,clientKey,today,isTravelCash} from './domain.mjs';
 export const emptyControl=()=>({version:1,revision:0,owners:['','',''],packages:[],audit:[]});
 const fail=message=>{throw Error(message);};
 const text=(v,max=200)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
@@ -18,9 +18,10 @@ export function allocatedRit(control,id){return control.packages.reduce((n,p)=>n
 export function sourceConflicts(p,transactions){return p.sources.filter(s=>{const row=transactions.find(t=>t.id===s.row.id);return !row||sourceSignature(row)!==sourceSignature(s.row);});}
 export function validateControl(s){
  if(!s||s.version!==1||!integer(s.revision)||!Array.isArray(s.owners)||s.owners.length!==3||s.owners.some(x=>typeof x!=='string'||x.length>100)||!Array.isArray(s.packages)||s.packages.length>2000||!Array.isArray(s.audit))fail('Format kontrol rit tidak valid.');
+ if(s.vehiclePlates!==undefined&&(!Array.isArray(s.vehiclePlates)||s.vehiclePlates.length>1000||s.vehiclePlates.some(p=>!validPlate(p))))fail('Daftar armada kontrol tidak valid.');
  const ids=new Set(),refs=new Set(),fundingRefs=new Set(),usedSources=new Map(),carryUsed=new Set();
  for(const p of s.packages){
-  if(!text(p.id,100)||ids.has(p.id)||!text(p.name)||!plates.includes(p.plate)||!(p.simple?typeof p.driver==='string':text(p.driver))||!(p.simple?typeof p.customer==='string':text(p.customer))||!date(p.date)||!integer(p.target,100)||!p.target||!integer(p.rate,1e9)||!p.rate||!(p.simple?typeof p.owner==='string':text(p.owner,100))||!Array.isArray(p.sources)||!Array.isArray(p.payments)||!Array.isArray(p.proofs)||p.sources.length>300||p.proofs.length>300||p.payments.length>100)fail('Paket rit tidak valid.');
+  if(!text(p.id,100)||ids.has(p.id)||!text(p.name)||![...plates,...(s.vehiclePlates||[])].includes(p.plate)||!(p.simple?typeof p.driver==='string':text(p.driver))||!(p.simple?typeof p.customer==='string':text(p.customer))||!date(p.date)||!integer(p.target,100)||!p.target||!integer(p.rate,1e9)||!p.rate||!(p.simple?typeof p.owner==='string':text(p.owner,100))||!Array.isArray(p.sources)||!Array.isArray(p.payments)||!Array.isArray(p.proofs)||p.sources.length>300||p.proofs.length>300||p.payments.length>100)fail('Paket rit tidak valid.');
   ids.add(p.id);
   if(p.actuals!==undefined&&(!Array.isArray(p.actuals)||p.actuals.length>300||p.actuals.some(x=>!text(x.id,100)||!integer(x.rit,100)||!x.rit||!date(x.date)||!text(x.description,500)||!text(x.by)||!text(x.at))||packageSummary(p,s).verified>p.target))fail('Catatan rit selesai tidak valid.');
   for(const s of p.sources){const t=s.row;if(!t||!text(t.id,100)||t.plate!==p.plate||t.type!=='Pemasukan'||clientKey(t.customer)!==clientKey(p.customer)||!integer(t.rit,100000)||!integer(s.rit,t.rit)||!s.rit)fail('Sumber revenue tidak sesuai paket.');const old=usedSources.get(t.id)||{capacity:0,rit:0};old.capacity=Math.max(old.capacity,t.rit);old.rit+=s.rit;usedSources.set(t.id,old);}
@@ -37,9 +38,10 @@ export function validateControl(s){
  for(const p of s.packages){const seen=new Set([p.id]);let prev=p.carryFrom;while(prev){if(seen.has(prev))fail('Rantai saldo kasbon tidak valid.');seen.add(prev);prev=s.packages.find(x=>x.id===prev)?.carryFrom;}}
  return s;
 }
-export function applyControlCommand(current,command,{actor,id,at,transactions}){
+export function applyControlCommand(current,command,{actor,id,at,transactions,vehiclePlates=[]}){
  validateControl(current);if(!text(actor)||!text(id)||!text(at)||!command||!text(command.type))fail('Permintaan kontrol tidak valid.');
  const next=structuredClone(current),c=command,p=next.packages.find(x=>x.id===c.packageId);
+ next.vehiclePlates=[...new Set([...plates,...(current.vehiclePlates||[]),...vehiclePlates])];
  const snapshot=key=>transactions.find(t=>t.id===key);
  const addSources=(packageItem,allocations)=>{if(!Array.isArray(allocations)||allocations.length>300)fail('Pilih sumber transaksi yang valid.');for(const a of allocations){const row=snapshot(a.id);if(!row)fail('Sumber transaksi tidak ditemukan. Muat ulang Accounting.');if(!integer(a.rit,row.rit)||allocatedRit(next,row.id)+(next.packages.includes(packageItem)?0:packageItem.sources.filter(s=>s.row.id===row.id).reduce((n,s)=>n+s.rit,0))+a.rit>row.rit)fail('Rit sumber sudah digunakan paket lain.');const existing=packageItem.sources.find(s=>s.row.id===row.id);if(existing){if(sourceSignature(existing.row)!==sourceSignature(row))fail('Cocokkan sumber yang berubah sebelum menambah alokasi.');existing.rit+=a.rit;}else packageItem.sources.push({row:structuredClone(row),rit:a.rit});}};
  if(c.type==='sync-funding'){
