@@ -1,6 +1,8 @@
 export const plates=['B 9322 UOM','B 9794 TM','B 9286 JG','T 9186 DC','B 9628 SYL','E 9318 B','B 9635 JV','B 9275 TZ'];
 export const incomeCategories=['Pendapatan angkutan','Sewa armada','Pendapatan lain'];
-export const expenseCategories=['Solar / BBM','Tol & parkir','Uang jalan','Biaya Koordinasi','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Bagi Hasil','Langganan','Perlu cek'];
+export const expenseCategories=['Uang jalan','Biaya Koordinasi','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Bagi Hasil','Langganan','Gaji pegawai'];
+export const legacyExpenseCategories=['Solar / BBM','Tol & parkir','Perlu cek'];
+export const transactionCategories=(type,current='')=>{const values=categoriesFor(type);return type==='Pengeluaran'&&legacyExpenseCategories.includes(categoryLabel(current))?[categoryLabel(current),...values]:values;};
 export const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 export const categoriesFor=type=>type==='Pemasukan'?incomeCategories:expenseCategories;
 export const categoryLabel=c=>c==='Pemasukan'?'Pendapatan angkutan':c==='Bagi hasil'?'Bagi Hasil':c==='Uang Jalan'?'Uang jalan':c==='Service & Sparepart'?'Servis & sparepart':c==='Lainnya'?'Biaya lain':c==='Pendapatan'?'Pendapatan angkutan':c==='Solar'?'Solar / BBM':c;
@@ -15,18 +17,19 @@ export function defaultReportMonth(state){return availableMonths(state).filter(k
 export function previousMonth(k){const d=new Date(k+'-01T00:00:00Z');d.setUTCMonth(d.getUTCMonth()-1);return d.toISOString().slice(0,7);}
 export function totals(rows){return rows.reduce((a,t)=>({income:a.income+(t.income??0),expense:a.expense+(t.expense??0),rit:a.rit+(t.type==='Pemasukan'?(t.rit||0):0),count:a.count+1,missing:a.missing+Number(t.income===null||t.expense===null)}),{income:0,expense:0,rit:0,count:0,missing:0});}
 export const issues=t=>dateIssue(t)||!t.date||t.income===null||t.expense===null||t.category==='Perlu cek'||(t.type==='Pemasukan'&&!clientKey(t.customer));
-export function selectRows(state,{month='all',plate='all',client='all'}={}){return state.transactions.filter(t=>(month==='all'||month==='unassigned'&&!monthKey(t)||monthKey(t)===month)&&(plate==='all'||t.plate===plate)&&(client==='all'||clientKey(t.customer)===client));}
+export function selectRows(state,{month='all',plate='all',client='all'}={}){return state.transactions.filter(t=>(month==='all'||month==='unassigned'&&!monthKey(t)||monthKey(t)===month)&&(plate==='all'||plate==='global'&&t.plate===''||t.plate===plate)&&(client==='all'||clientKey(t.customer)===client));}
 export function availableMonths(state){return [...new Set(state.transactions.map(monthKey).filter(Boolean))].sort();}
-export function clientSummary(rows,masters=[]){const map=new Map();for(const c of masters)map.set(clientKey(c.name),{key:clientKey(c.name),name:clientName(c.name),rows:[],plates:new Set()});for(const t of rows){if(!clientKey(t.customer))continue;const key=clientKey(t.customer);if(!map.has(key))map.set(key,{key,name:clientName(t.customer),rows:[],plates:new Set()});const c=map.get(key);c.rows.push(t);c.plates.add(t.plate);}return [...map.values()].map(c=>({...c,...totals(c.rows),plates:[...c.plates],incomeRows:c.rows.filter(t=>t.type==='Pemasukan').length})).sort((a,b)=>b.income-a.income||a.name.localeCompare(b.name));}
+export function clientSummary(rows,masters=[]){const map=new Map();for(const c of masters)map.set(clientKey(c.name),{key:clientKey(c.name),name:clientName(c.name),rows:[],plates:new Set()});for(const t of rows){if(!clientKey(t.customer))continue;const key=clientKey(t.customer);if(!map.has(key))map.set(key,{key,name:clientName(t.customer),rows:[],plates:new Set()});const c=map.get(key);c.rows.push(t);if(t.plate)c.plates.add(t.plate);}return [...map.values()].map(c=>({...c,...totals(c.rows),plates:[...c.plates],incomeRows:c.rows.filter(t=>t.type==='Pemasukan').length})).sort((a,b)=>b.income-a.income||a.name.localeCompare(b.name));}
 export function weeklyRows(state,week){const end=new Date(week+'T00:00:00Z');end.setUTCDate(end.getUTCDate()+7);return state.transactions.filter(t=>t.date&&t.date>=week&&t.date<end.toISOString().slice(0,10));}
 export function empty(){return {version:1,revision:0,transactions:[],trips:[],reports:[],clients:[],monthlyReports:[],fleet:plates.map(plate=>({plate,status:'Belum diperbarui',driver:'',serviceDue:'',documentDue:''})),audit:[]};}
 export const monthlyReportKey=r=>r.month+'|'+(r.plate||'all');
 export const isCoordinationExpense=t=>t.type==='Pengeluaran'&&/\btap\s*75\b/i.test(String(t.description||''));
 export const canonicalPlate=p=>p==='B 9186 JG'?'B 9286 JG':p;
-export const displayPlate=p=>p==='B 9286 JG'?'B 9186 JG':p;
+export const displayPlate=p=>!p?'Global':p==='B 9286 JG'?'B 9186 JG':p;
 export const isProfitShare=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)==='Bagi Hasil';
 export const isTravelCash=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)==='Uang jalan'&&t.expense>0;
-export function fleetTotals(rows){const shares=rows.filter(isProfitShare),costs=rows.filter(t=>t.type==='Pengeluaran'&&!isProfitShare(t));return {income:shares.reduce((n,t)=>n+(t.expense||0),0),expense:totals(costs).expense,rit:totals(rows).rit};}
+export const recordedRit=rows=>rows.filter(isProfitShare).reduce((n,t)=>n+(t.rit||0),0);
+export function fleetTotals(rows){const shares=rows.filter(isProfitShare),costs=rows.filter(t=>t.type==='Pengeluaran'&&!isProfitShare(t));return {income:shares.reduce((n,t)=>n+(t.expense||0),0),expense:totals(costs).expense,rit:recordedRit(rows)};}
 export function normalize(s){return {...s,transactions:Array.isArray(s.transactions)?s.transactions.map(t=>isCoordinationExpense(t)&&t.category==='Perlu cek'?{...t,category:'Biaya Koordinasi'}:t):s.transactions,clients:s.clients||[],monthlyReports:s.monthlyReports||[],audit:s.audit||[]};}
 function str(v,n=200){return typeof v==='string'&&v.length<=n;}
 function date(v){return str(v,10)&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&!isNaN(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;}
@@ -34,7 +37,7 @@ function money(v){return Number.isSafeInteger(v)&&v>=0&&v<=1e13;}
 export function validate(s){
  if(!s||s.version!==1||!Number.isSafeInteger(s.revision)||s.revision<0||!['transactions','trips','reports','fleet'].every(k=>Array.isArray(s[k])&&s[k].length<=15000))throw Error('Format data tidak valid.');
  const ids=new Set();const take=id=>{if(!str(id,100)||!id||ids.has(id))throw Error('ID kosong atau duplikat.');ids.add(id);};
- for(const t of s.transactions){take(t.id);if(!plates.includes(t.plate)||!(t.date===null||date(t.date))||!str(t.period,50)||!str(t.description,500)||!['Pemasukan','Pengeluaran'].includes(t.type)||!categoriesFor(t.type).includes(categoryLabel(t.category))||!str(t.customer)||!Number.isSafeInteger(t.rit)||t.rit<0||t.rit>100000||!(t.income===null||money(t.income))||!(t.expense===null||money(t.expense))||(t.type==='Pemasukan'&&t.expense!==0)||(t.type==='Pengeluaran'&&t.income!==0))throw Error('Transaksi tidak valid. Pastikan kategori sesuai jenis dan nominal tidak negatif.');}
+ for(const t of s.transactions){take(t.id);if(!(plates.includes(t.plate)||t.type==='Pemasukan'&&t.plate==='')||!(t.date===null||date(t.date))||!str(t.period,50)||!str(t.description,500)||!['Pemasukan','Pengeluaran'].includes(t.type)||![...categoriesFor(t.type),...(t.type==='Pengeluaran'?legacyExpenseCategories:[])].includes(categoryLabel(t.category))||!str(t.customer)||!Number.isSafeInteger(t.rit)||t.rit<0||t.rit>100000||!(t.income===null||money(t.income))||!(t.expense===null||money(t.expense))||(t.type==='Pemasukan'&&t.expense!==0)||(t.type==='Pengeluaran'&&t.income!==0))throw Error('Transaksi tidak valid. Pastikan kategori sesuai jenis dan nominal tidak negatif.');}
  for(const t of s.trips){take(t.id);if(!plates.includes(t.plate)||!date(t.date)||!str(t.customer)||!str(t.driver)||!str(t.origin)||!str(t.destination)||!['Terjadwal','Dalam perjalanan','Selesai','Dibatalkan'].includes(t.status))throw Error('Data trip tidak valid.');}
  for(const r of s.reports){take(r.id);if(!date(r.week)||!str(r.notes,3000)||!['Draft','Ditinjau'].includes(r.status))throw Error('Laporan mingguan tidak valid.');}
  if(s.fleet.length!==plates.length||new Set(s.fleet.map(f=>f.plate)).size!==plates.length)throw Error('Daftar armada tidak valid.');

@@ -1,4 +1,4 @@
-import {categoriesFor,categoryLabel,normalize,validate,monthLabel} from './domain.mjs';
+import {transactionCategories,categoriesFor,categoryLabel,normalize,validate,monthLabel} from './domain.mjs';
 export const sheetFields=['date','description','income','expense'];
 export function draftRows(state){return state.transactions.map(t=>({...structuredClone(t),date:t.date||'',category:categoryLabel(t.category),income:t.type==='Pemasukan'?(t.income===null?'':String(t.income)):'',expense:t.type==='Pengeluaran'?(t.expense===null?'':String(t.expense)):''}));}
 export function sheetPeriod(row){return row.period|| (row.date&&/^\d{4}-\d{2}-\d{2}$/.test(row.date)?monthLabel(row.date.slice(0,7)):'Periode belum diisi');}
@@ -17,7 +17,7 @@ export function compileSheet(state,rows,baseRevision){
   if(row.isNew&&income===null&&expense===null)problem('expense','Isi nominal Masuk atau Keluar.');
   if(!row.description.trim())problem('description','Keterangan wajib diisi.');
   const type=rowType(row),category=categoryLabel(row.category);
-  if(!categoriesFor(type).includes(category))problem('category','Pilih kategori yang sesuai Revenue/Expenses di detail baris.');
+  if(!transactionCategories(type,state.transactions.find(t=>t.id===row.id&&t.type===type)?.category).includes(category))problem('category','Pilih kategori yang sesuai Revenue/Expenses di detail baris.');
 
   const rit=Number(row.rit);if(!Number.isSafeInteger(rit)||rit<0||rit>100000)problem('rit','Rit harus bilangan bulat 0–100000.');
   if(!row.period.trim()||row.period.length>50)problem('period','Isi periode di detail baris, maksimal 50 karakter.');
