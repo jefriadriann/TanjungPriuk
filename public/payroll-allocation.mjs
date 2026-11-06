@@ -7,7 +7,7 @@ export function allocatePayroll(state){
  for(const salary of salaries){const period=monthKey(salary);if(!period){pending.push({sourceId:salary.id,amount:salary.expense,period:null,reason:'Periode gaji belum jelas'});continue;}
   if(!basis.has(period)){
    const profits=new Map(units.map(p=>[p,0n]));let incomplete=false;
-   for(const row of base.filter(t=>monthKey(t)===period)){if(!profits.has(row.plate))continue;if(row.expense===null){incomplete=true;continue;}profits.set(row.plate,profits.get(row.plate)+(isProfitShare(row)?1n:-1n)*BigInt(row.expense));}
+   for(const row of base.filter(t=>monthKey(t)===period)){if(!profits.has(row.plate))continue;const amount=row.type==='Pemasukan'?row.income:row.expense;if(amount===null){incomplete=true;continue;}profits.set(row.plate,profits.get(row.plate)+(isProfitShare(row)?1n:-1n)*BigInt(amount));}
    const weights=units.map(plate=>({plate,profit:profits.get(plate)>0n?profits.get(plate):0n}));basis.set(period,{weights,total:weights.reduce((n,w)=>n+w.profit,0n),incomplete});
   }
   const {weights,total,incomplete}=basis.get(period);if(salary.expense===null||incomplete||total===0n){pending.push({sourceId:salary.id,amount:salary.expense,period,reason:salary.expense===null?'Nominal gaji belum diisi':incomplete?'Nominal biaya atau bagi hasil belum lengkap':'Belum ada mobil berlaba pada bulan ini'});continue;}

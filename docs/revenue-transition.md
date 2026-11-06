@@ -1,0 +1,13 @@
+# Revenue Bagi Hasil and item deletion
+
+The `share-revenue-v2` transition removes every pre-transition Revenue transaction except existing Revenue Bagi Hasil. It converts legacy Expenses Bagi Hasil into actual per-vehicle Revenue Bagi Hasil, keeping the source ID, truck, date, period, client and nominal. A missing/zero rit can use an explicit `N rit` description. Remaining expenses keep their original values. Revenue Bagi Hasil is now a new-transaction income category with vehicle and rit fields.
+
+The migration runs once per workspace. It does not remove Revenue entered after the transition. Existing browser storage is backed up in `tanjung-priok-before-share-revenue-v2` **before** the new state is saved. If backup storage fails, the migration stops without overwriting the original workspace. Data & cadangan offers that complete backup and a separate deleted-transaction archive. The authenticated initial-data endpoint also returns the new model, so a fresh browser receives the same accounting rules; no financial records are embedded in static source files.
+
+Hapus on transaction rows archives the complete original row, account and deletion time, removes it from totals and records a tombstone. Hapus sumber on a derived payroll row deletes its original shared salary after explaining that all allocations will change. Accounting deletions are archived by the same commit boundary. Imports respect tombstones and do not re-add deleted source rows.
+
+Armada reads actual Revenue Bagi Hasil, and payroll's pre-salary profit uses that revenue once. Dashboard/rit charts, cashbook and exports use the same nominal and rit. Uang jalan remains an expense only in Buku transaksi and funding in Kontrol Rit.
+
+Kontrol Rit Hapus archives the complete package and prevents its linked cash source from recreating the same control automatically. It does not delete the Buku transaksi cash payment. A control referenced by another package's carried balance cannot be removed until its dependencies are resolved. Individual executed rit can be removed with a reason while retaining their history.
+
+Opening/reloading Kontrol Rit reconciles explicit financial tombstones: removed old Revenue links are released with prior snapshots preserved; deleted/reclassified cash is voided on open controls and funding/balances recalculate. Actual executed rit are not inferred from receipts or removed by source migration. A missing row in another browser is not treated as a deletion without an explicit tombstone. Deleted source identifiers are retained in shared control state to prevent an older browser from reintroducing removed funding. Closed historical controls remain locked; they can be archived with the delete action if no carry dependency exists.

@@ -31,12 +31,12 @@ export function importInitialData(storage,incoming){
  const text=v=>String(v||'').trim().toLocaleLowerCase('id-ID').replace(/\s+/g,' ').replace(/^orderan\b/,'order');
  const same=(a,b)=>['plate','date','type','income','expense','rit'].every(k=>a[k]===b[k])&&text(a.description)===text(b.description)&&clientKey(a.customer)===clientKey(b.customer);
  for(const key of ['transactions','trips','reports','monthlyReports']){
-  const ids=new Set(next[key].map(x=>x.id));
+  const ids=new Set([...next[key].map(x=>x.id),...(key==='transactions'?next.deletedTransactionIds||[]:[])]);
   for(const row of incoming[key]||[]){if(key==='transactions'&&!ids.has(row.id)){const i=manual.findIndex(t=>same(t,row));if(i>=0){manual.splice(i,1);continue;}}if(!ids.has(row.id)&&!(key==='monthlyReports'&&next[key].some(x=>monthlyReportKey(x)===monthlyReportKey(row)))){next[key].push(row);ids.add(row.id);}}
  }
  const clients=new Set(next.clients.map(x=>clientKey(x.name)));
  for(const row of incoming.clients||[]){if(!clients.has(clientKey(row.name))){next.clients.push(row);clients.add(clientKey(row.name));}}
- if(!hadRecords)next.fleet=incoming.fleet;
+ if(!hadRecords){next.fleet=incoming.fleet;if(incoming.migrations)next.migrations=structuredClone(incoming.migrations);if(incoming.deletedTransactions)next.deletedTransactions=structuredClone(incoming.deletedTransactions);if(incoming.deletedTransactionIds)next.deletedTransactionIds=[...new Set([...(next.deletedTransactionIds||[]),...incoming.deletedTransactionIds])];}
  next.revision=current.revision+1;next.updatedAt=new Date().toISOString();
  validate(next);
  // Keep the previous browser copy if validation or quota writes fail.
