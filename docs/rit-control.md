@@ -17,3 +17,9 @@ Amounts/dates of linked advances update on reload while controls are open; previ
 Query1 replaces earlier imported workbook rows. A full pre-import browser backup is saved before replacement and can be downloaded from Data & cadangan. Manual entries, vehicle status, trips and reports remain. Query1 import is idempotent; previously edited Query1 rows remain intact on reload. Legacy imported row edits are retained in the full backup. Old source snapshots in existing control packages remain available; unavailable revenue links must be explicitly reconciled.
 
 Financial data remains in the existing browser storage. Shared control data is stored in Supabase `tp_rit_control`; switching browser or device does not synchronize browser financial edits. The control reload copies selected source snapshots using revision checks and authenticated server audit stamps. This is not live push synchronization. The existing two-email login allowlist and RLS remain in effect.
+
+## Order list inside each control
+
+Clicking a control row (or its Lihat order button) opens the full order list for that control. Keyboard users can focus the row and press Enter/Space. Order details show date, free-text uraian and quantity; entries from other controls are not mixed into the list. Empty controls show an empty-state message and Tambah order.
+
+Active controls expose Edit and Hapus for each order. Editing preserves the order ID and previous field values with server account/time stamps. Validation checks dates, integer quantity, the package's target and the other existing/verified rit. Deletion requires a reason and archives the complete order including edit history. Rit completed, remaining rit and available funds recalculate from the saved data; the original cashbook funding remains unchanged. Settled controls retain a read-only order history to preserve approved balances.

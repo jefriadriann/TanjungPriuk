@@ -73,6 +73,12 @@ export function applyControlCommand(current,command,{actor,id,at,transactions,ve
    if(!integer(c.rit,100)||!c.rit||!date(c.date)||c.date<p.date||c.date>today()||!text(c.description,500))fail('Isi tanggal, uraian, dan jumlah rit selesai yang valid.');
    if(packageSummary(p,next).verified+c.rit>p.target)fail('Rit selesai melebihi target.');
    p.actuals=[...(p.actuals||[]),{id,rit:c.rit,date:c.date,description:c.description,by:actor,at}];
+  }else if(c.type==='edit-rit'){
+   const entry=(p.actuals||[]).find(x=>x.id===c.entryId);if(!entry)fail('Order tidak ditemukan atau sudah dihapus.');
+   if(!integer(c.rit,100)||!c.rit||!date(c.date)||c.date<p.date||c.date>today()||!text(c.description,500))fail('Isi tanggal, uraian, dan jumlah rit order yang valid.');
+   if(packageSummary(p,next).verified-entry.rit+c.rit>p.target)fail('Rit selesai melebihi target.');
+   entry.history=[...(entry.history||[]),{date:entry.date,description:entry.description,rit:entry.rit,by:entry.updatedBy||entry.by,at:entry.updatedAt||entry.at,editedBy:actor,editedAt:at}];
+   Object.assign(entry,{date:c.date,description:c.description,rit:c.rit,updatedBy:actor,updatedAt:at});
   }else if(c.type==='void-rit'){
    const entry=(p.actuals||[]).find(x=>x.id===c.entryId);if(!entry||!text(c.note,1000))fail('Isi alasan koreksi rit.');
    p.voidedActuals=[...(p.voidedActuals||[]),{...entry,voidedBy:actor,voidedAt:at,note:c.note}];p.actuals=p.actuals.filter(x=>x.id!==c.entryId);
