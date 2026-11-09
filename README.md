@@ -11,7 +11,7 @@ Login uses a one-time email link through Supabase Auth. Only confirmed email add
 - Vercel without Redis: authenticated users use localStorage in their browser. This data is not shared across devices. Logging out does not erase previously downloaded browser data; use trusted devices and export backups regularly.
 - Local Node server: ignored `.local/data.json` stores private data on the machine. Local development also requires auth configuration. The app does not automatically load `.env` files; use exported variables or `node --env-file=.env.local server.mjs`.
 - Optional Upstash Redis: both REST variables activate a shared workspace. Email authentication applies to all workspace reads and writes. All approved users currently have the same read/write access; there is no separate admin role.
-- Sessions last at most one hour, then require another email login. Browser cache revision checks are best-effort across tabs; Redis updates use atomic compare-and-set.
+- Access tokens last at most one hour and renew automatically using a rotating HttpOnly refresh cookie retained for 30 days from its last update, subject to provider session policy. Existing users must sign in once again to obtain the new refresh cookie. Browser cache revision checks are best-effort across tabs; Redis updates use atomic compare-and-set.
 
 Financial source records must never be committed to this public repository or put in public/ or dist/. The private import file is supplied separately.
 
