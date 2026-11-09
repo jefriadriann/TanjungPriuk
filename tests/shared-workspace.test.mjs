@@ -40,3 +40,41 @@ test('shared control uses authoritative financial rows even when an old device s
  globalThis.fetch=async(url,options={})=>{if(options.method==='PATCH'){patch=JSON.parse(options.body);return Response.json([patch]);}return Response.json([{revision:control.revision,state:control}]);};
  try{let result;await controlRequest({method:'PUT',body:{revision:control.revision,command:{type:'sync-funding'},transactions:[cash]}},{url:'https://db.example',key:'publishable'},{email:stamp.by},'session',(status,data)=>result={status,data});assert.equal(result.status,200);assert.equal(patch.state.packages[0].payments[0].amount,1500000);assert.equal(patch.state.workspace.transactions[0].expense,1500000);}finally{globalThis.fetch=oldFetch;}
 });
+
+test('all editable menus share one database across two approved accounts and a stale device cannot overwrite them',async()=>{
+ const {default:handler}=await import('../api/workspace.mjs');
+ const names=['VERCEL','REQUIRE_EMAIL_LOGIN','APP_ORIGIN','SUPABASE_URL','SUPABASE_PUBLISHABLE_KEY','AUTH_ALLOWED_EMAILS','PUBLIC_EXCEL_IMPORT','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN'];
+ const before=Object.fromEntries(names.map(k=>[k,process.env[k]])),oldFetch=globalThis.fetch;
+ Object.assign(process.env,{VERCEL:'1',REQUIRE_EMAIL_LOGIN:'1',APP_ORIGIN:'https://fleet.example',SUPABASE_URL:'https://db.example',SUPABASE_PUBLISHABLE_KEY:'public-test',AUTH_ALLOWED_EMAILS:'first@example.com,second@example.com'});
+ for(const k of ['PUBLIC_EXCEL_IMPORT','UPSTASH_REDIS_REST_URL','UPSTASH_REDIS_REST_TOKEN'])delete process.env[k];
+ let db={revision:0,state:emptyControl()};const destinations=new Set();
+ globalThis.fetch=async(url,options={})=>{
+  if(String(url).includes('/auth/v1/user'))return Response.json({id:options.headers.Authorization,email:options.headers.Authorization==='Bearer first'?'first@example.com':'second@example.com',email_confirmed_at:'2026-01-01'});
+  destinations.add(new URL(url).pathname);
+  if(options.method==='PATCH'){if(!String(url).includes('revision=eq.'+db.revision))return Response.json([]);db=JSON.parse(options.body);return Response.json([db]);}
+  return Response.json([structuredClone(db)]);
+ };
+ const call=async(account,action='state',body)=>{const res={setHeader(){},end(raw){this.body=JSON.parse(raw);}};await handler({url:'/api/index?action='+action,method:body?'PUT':'GET',body,headers:{cookie:'tp_session='+account,origin:'https://fleet.example','content-type':'application/json'}},res);return res;};
+ try{
+  for(const account of ['first','second']){const status=await call(account,'status');assert.equal(status.body.storage,'cloud');assert.equal(status.body.sharedWorkspace,true);assert.equal(status.body.authenticated,true);}
+  const first=await call('first'),stale=await call('second'),input=structuredClone(first.body);
+  // Buku transaksi and Accounting edit the same transaction collection.
+  input.transactions=[cash];
+  input.clients=[{id:'client-test',name:'Client test',contact:'PIC',notes:'Klien & Revenue'}];
+  input.fleet[0].status='Beroperasi';
+  input.trips=[{id:'trip-test',plate:cash.plate,date:cash.date,customer:'Client test',driver:'Driver',origin:'Priok',destination:'Gudang',status:'Terjadwal'}];
+  input.reports=[{id:'weekly-test',week:'2026-11-02',notes:'Laporan mingguan',status:'Draft'}];
+  input.monthlyReports=[{id:'monthly-test',month:'2026-11',plate:'all',notes:'Laporan bulanan',preparedBy:'Tim',status:'Draft'}];
+  const saved=await call('first','state',input);assert.equal(saved.statusCode,200);
+  const second=await call('second');for(const key of ['transactions','clients','fleet','trips','reports','monthlyReports'])assert.deepEqual(second.body[key],input[key]);
+  const controls=await call('second','rit-control');assert.equal(controls.body.packages[0].payments[0].amount,cash.expense);
+  const rit=await call('second','rit-control',{revision:controls.body.revision,command:{type:'record-rit',packageId:controls.body.packages[0].id,plate:cash.plate,date:cash.date,description:'Client test',rit:2},transactions:[]});assert.equal(rit.statusCode,200);
+  assert.equal((await call('first','rit-control')).body.packages[0].actuals[0].rit,2);
+  assert.equal((await call('second','state',stale.body)).statusCode,409);
+  assert.equal((await call('first')).body.transactions.length,1);
+  assert.deepEqual([...destinations],['/rest/v1/tp_rit_control']);
+  globalThis.fetch=async()=>{throw Error('Database unavailable');};
+  assert.equal((await call('first','state',saved.body)).statusCode,500);
+  assert.equal(db.state.workspace.transactions.length,1);
+ }finally{globalThis.fetch=oldFetch;for(const k of names){if(before[k]===undefined)delete process.env[k];else process.env[k]=before[k];}}
+});
