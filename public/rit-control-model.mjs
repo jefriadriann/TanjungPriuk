@@ -12,7 +12,7 @@ export function packageSummary(p,state){
  const funded=cash+carry,accounted=verified*p.rate,balance=Math.max(0,funded-accounted),shortfall=Math.max(0,accounted-funded);
  const reported=p.reportedRit??null,claimGap=reported===null?0:Math.max(0,reported-verified);
  const stage=p.closed?'closed':funded<p.target*p.rate?'funding':verified>=p.target?'settlement':pending?'verification':'execution';
- return {reported,claimGap,verified,pending,cash,carry,funded,accounted,balance,shortfall,stage,topup:Math.max(0,p.target*p.rate-funded),remaining:Math.max(0,p.target-verified)};
+ return {reported,claimGap,verified,pending,cash,carry,funded,accounted,balance,shortfall,stage,topup:Math.max(0,p.target*p.rate-funded),excess:Math.max(0,verified-p.target),remaining:Math.max(0,p.target-verified)};
 }
 export function allocatedRit(control,id){return control.packages.reduce((n,p)=>n+p.sources.filter(s=>s.row.id===id).reduce((a,s)=>a+s.rit,0),0);}
 export function sourceConflicts(p,transactions){return p.sources.filter(s=>{const row=transactions.find(t=>t.id===s.row.id);return !row||sourceSignature(row)!==sourceSignature(s.row);});}
@@ -23,7 +23,7 @@ export function validateControl(s){
  for(const p of s.packages){
   if(!text(p.id,100)||ids.has(p.id)||!text(p.name)||![...plates,...(s.vehiclePlates||[])].includes(p.plate)||!(p.simple?typeof p.driver==='string':text(p.driver))||!(p.simple?typeof p.customer==='string':text(p.customer))||!date(p.date)||!integer(p.target,100)||!p.target||!integer(p.rate,1e9)||!p.rate||!(p.simple?typeof p.owner==='string':text(p.owner,100))||!Array.isArray(p.sources)||!Array.isArray(p.payments)||!Array.isArray(p.proofs)||p.sources.length>300||p.proofs.length>300||p.payments.length>100)fail('Paket rit tidak valid.');
   ids.add(p.id);
-  if(p.actuals!==undefined&&(!Array.isArray(p.actuals)||p.actuals.length>300||p.actuals.some(x=>!text(x.id,100)||!integer(x.rit,100)||!x.rit||!date(x.date)||!text(x.description,500)||!text(x.by)||!text(x.at))||packageSummary(p,s).verified>p.target))fail('Catatan rit selesai tidak valid.');
+  if(p.actuals!==undefined&&(!Array.isArray(p.actuals)||p.actuals.length>300||p.actuals.some(x=>!text(x.id,100)||!integer(x.rit,100000)||!x.rit||!date(x.date)||!text(x.description,500)||!text(x.by)||!text(x.at))))fail('Catatan rit selesai tidak valid.');
   for(const s of p.sources){const t=s.row;if(!t||!text(t.id,100)||t.plate!==p.plate||t.type!=='Pemasukan'||clientKey(t.customer)!==clientKey(p.customer)||!integer(t.rit,100000)||!integer(s.rit,t.rit)||!s.rit)fail('Sumber revenue tidak sesuai paket.');const old=usedSources.get(t.id)||{capacity:0,rit:0};old.capacity=Math.max(old.capacity,t.rit);old.rit+=s.rit;usedSources.set(t.id,old);}
   if(p.reportedRit!==undefined&&p.reportedRit!==null&&!integer(p.reportedRit,p.target))fail('Jumlah rit dilaporkan tidak valid.');
   if(p.sources.reduce((n,s)=>n+s.rit,0)>p.target)fail('Rit sumber melebihi target paket.');
@@ -70,13 +70,11 @@ export function applyControlCommand(current,command,{actor,id,at,transactions,ve
   if(!p)fail('Paket tidak ditemukan.');if(p.closed)fail('Paket sudah diselesaikan dan dikunci.');
   if(c.type==='record-rit'){
    if(c.plate!==undefined&&c.plate!==p.plate)fail('Pilih uang jalan pada armada yang sama.');
-   if(!integer(c.rit,100)||!c.rit||!date(c.date)||c.date<p.date||c.date>today()||!text(c.description,500))fail('Isi tanggal, uraian, dan jumlah rit selesai yang valid.');
-   if(packageSummary(p,next).verified+c.rit>p.target)fail('Rit selesai melebihi target.');
+   if(!integer(c.rit,100000)||!c.rit||!date(c.date)||c.date<p.date||c.date>today()||!text(c.description,500))fail('Isi tanggal, uraian, dan jumlah rit selesai yang valid.');
    p.actuals=[...(p.actuals||[]),{id,rit:c.rit,date:c.date,description:c.description,by:actor,at}];
   }else if(c.type==='edit-rit'){
    const entry=(p.actuals||[]).find(x=>x.id===c.entryId);if(!entry)fail('Order tidak ditemukan atau sudah dihapus.');
-   if(!integer(c.rit,100)||!c.rit||!date(c.date)||c.date<p.date||c.date>today()||!text(c.description,500))fail('Isi tanggal, uraian, dan jumlah rit order yang valid.');
-   if(packageSummary(p,next).verified-entry.rit+c.rit>p.target)fail('Rit selesai melebihi target.');
+   if(!integer(c.rit,100000)||!c.rit||!date(c.date)||c.date<p.date||c.date>today()||!text(c.description,500))fail('Isi tanggal, uraian, dan jumlah rit order yang valid.');
    entry.history=[...(entry.history||[]),{date:entry.date,description:entry.description,rit:entry.rit,by:entry.updatedBy||entry.by,at:entry.updatedAt||entry.at,editedBy:actor,editedAt:at}];
    Object.assign(entry,{date:c.date,description:c.description,rit:c.rit,updatedBy:actor,updatedAt:at});
   }else if(c.type==='void-rit'){
@@ -127,4 +125,15 @@ export function fundingNeedsSync(control,transactions,deletedTransactionIds=[]){
  deletedTransactionIds=[...new Set([...(control.removedSourceIds||[]),...deletedTransactionIds])];
  if(control.packages.some(p=>!p.closed&&(p.sources.some(x=>deletedTransactionIds.includes(x.row.id))||p.payments.some(pay=>pay.sourceId&&(deletedTransactionIds.includes(pay.sourceId)||transactions.some(t=>t.id===pay.sourceId&&(!isTravelCash(t)||t.plate!==p.plate)))))))return true;
  return transactions.filter(t=>isTravelCash(t)&&!(control.excludedFundingIds||[]).includes(t.id)&&!deletedTransactionIds.includes(t.id)).some(t=>{if(!date(t.date)||t.date>today())return false;const p=control.packages.find(p=>p.payments.some(x=>x.sourceId===t.id));if(!p)return !control.packages.some(p=>p.id==='cash-'+t.id&&p.closed);const pay=p.payments.find(x=>x.sourceId===t.id);return !p.closed&&(pay.amount!==t.expense||pay.date!==t.date);});
+}
+
+export function completedOrderSummary(packages){
+ const groups=new Map();
+ for(const p of packages){
+  for(const entry of [...(p.actuals||[]),...p.proofs.filter(x=>x.status==='verified').map(x=>({description:x.reference,rit:1}))]){
+   const description=entry.description.trim().replace(/\s+/g,' '),key=description.toLocaleLowerCase('id-ID');
+   const row=groups.get(key)||{description,rit:0};row.rit+=entry.rit;groups.set(key,row);
+  }
+ }
+ return [...groups.values()].sort((a,b)=>b.rit-a.rit||a.description.localeCompare(b.description,'id'));
 }
