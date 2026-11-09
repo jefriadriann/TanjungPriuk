@@ -26,3 +26,5 @@ export function fleetPrintHtml(rows,units,scope){return units.map(plate=>`<secti
 function printHtml(html,title){document.querySelector('.ledger-print-report')?.remove();const el=document.createElement('section');el.className='ledger-print-report';el.innerHTML=html;document.body.append(el);const original=document.title;document.title=title+'-'+today();document.body.classList.add('ledger-printing');const clean=()=>{el.remove();document.body.classList.remove('ledger-printing');document.title=original;window.removeEventListener('afterprint',clean);};window.addEventListener('afterprint',clean);try{window.print();}catch(e){clean();throw e;}}
 export function printLedger(rows,scope){printHtml(ledgerPrintHtml(rows,scope),'JBT-Buku-Transaksi');}
 export function printFleet(rows,units,scope){printHtml(fleetPrintHtml(rows,units,scope),'JBT-Armada');}
+
+export {script as loadExportScript};
