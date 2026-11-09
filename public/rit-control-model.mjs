@@ -14,6 +14,21 @@ export function packageSummary(p,state){
  const stage=p.closed?'closed':funded<p.target*p.rate?'funding':verified>=p.target?'settlement':pending?'verification':'execution';
  return {reported,claimGap,verified,pending,cash,carry,funded,accounted,balance,shortfall,stage,topup:Math.max(0,p.target*p.rate-funded),excess:Math.max(0,verified-p.target),remaining:Math.max(0,p.target-verified)};
 }
+// Keep signed differences until after aggregation, so excess trips offset remaining trips.
+export function controlTotals(packages,state){
+ const included=new Set(packages.map(p=>p.id));
+ return packages.reduce((total,p)=>{
+  const m=packageSummary(p,state);
+  // A carry within this selection is a transfer, not new funding.
+  total.funded+=m.cash+(included.has(p.carryFrom)?0:m.carry);
+  total.verified+=m.verified;
+  total.target+=p.target;
+  total.accounted+=m.accounted;
+  total.netRit=total.target-total.verified;
+  total.netFunds=total.funded-total.accounted;
+  return total;
+ },{funded:0,verified:0,target:0,accounted:0,netRit:0,netFunds:0});
+}
 export function allocatedRit(control,id){return control.packages.reduce((n,p)=>n+p.sources.filter(s=>s.row.id===id).reduce((a,s)=>a+s.rit,0),0);}
 export function sourceConflicts(p,transactions){return p.sources.filter(s=>{const row=transactions.find(t=>t.id===s.row.id);return !row||sourceSignature(row)!==sourceSignature(s.row);});}
 export function validateControl(s){
