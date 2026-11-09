@@ -32,9 +32,10 @@ const sheetEditor=new SpreadsheetEditor({getState:()=>state,saveState:next=>comm
 const control=new RitControl({api,getState:()=>state,toast,onNavigate:target=>{page=target.page;month='all';client=target.customer?clientKey(target.customer):'all';truck=target.plate||'all';if(page==='sheets'&&target.plate){sheetEditor.plate=target.plate;sheetEditor.period='all';sheetEditor.selected=null;}search='';quality='all';type='all';offset=0;if(target.transaction){const row=state.transactions.find(t=>t.id===target.transaction);if(row){truck=row.plate;search=row.description;}else toast('Sumber transaksi belum tersedia. Muat ulang data bersama.');}render();window.scrollTo(0,0);}});
 const names={control:'Kontrol Rit',sheets:'Accounting',dashboard:'Ringkasan bisnis',clients:'Klien & Revenue',finance:'Buku transaksi',fleet:'Armada',trips:'Operasional',reports:'Laporan mingguan',monthly:'Laporan bulanan',settings:'Data & cadangan'};
 function toast(msg){$('#toast').textContent=msg;$('#toast').classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').classList.remove('show'),5000);}
-async function api(action,method='GET',body){const r=await fetch('/api/index?action='+action,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});let b;try{b=await r.json();}catch{throw Error('Server belum merespons dengan benar. Coba muat ulang.');}if(!r.ok){if(r.status===401){state=null;modal.close();loginView('Sesi berakhir. Silakan masuk kembali.');}throw Error(b.error||'Permintaan gagal.');}return b;}
+async function api(action,method='GET',body){const r=await fetch('/api/index?action='+action,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});let b;try{b=await r.json();}catch{throw Error('Server belum merespons dengan benar. Coba muat ulang.');}if(!r.ok){if(r.status===401){if(state)showSessionNotice();else loginView('Sesi berakhir. Silakan masuk kembali.');}throw Error(b.error||'Permintaan gagal.');}if(action!=='status'||b.authenticated)document.getElementById('session-notice')?.remove();return b;}
 function localRead(){repairSeptemberYear(localStorage);repairCoordinationCategory(localStorage);const raw=localStorage.getItem(LOCAL_KEY);if(!raw)return empty();const s=migrateRevenueStorage(localStorage)||normalize(JSON.parse(raw));validate(s);return s;}
 function loginView(message=''){
+ document.getElementById('session-notice')?.remove();
  control.reset();
  const providerError=new URLSearchParams(location.search).get('login_error');
  app.innerHTML=`<main class="login-shell"><section class="panel login-card"><img src="/brand/logo-mark.png" width="56" height="56" alt=""><span class="login-kicker">PT JAYA BINTANG TERANG</span><h1>Workspace</h1><p>Pencatatan keuangan, kinerja armada, dan laporan manajemen dalam satu workspace.</p>${status.configured&&status.googleLogin?`<button type="button" class="btn google-login" data-action="google-login"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2.1H12v4h5.4a4.7 4.7 0 0 1-2 3.1v2.6h3.3c1.9-1.8 2.9-4.3 2.9-7.6Z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.7-2.4l-3.3-2.6c-.9.6-2 .9-3.4.9-2.6 0-4.8-1.8-5.6-4.1H3v2.7A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.8a6 6 0 0 1 0-3.6V7.5H3a10 10 0 0 0 0 9l3.4-2.7Z"/><path fill="#EA4335" d="M12 6.1c1.5 0 2.8.5 3.8 1.5l2.9-2.8A9.6 9.6 0 0 0 12 2a10 10 0 0 0-9 5.5l3.4 2.7A5.9 5.9 0 0 1 12 6.1Z"/></svg>Masuk dengan Google</button><p class="login-help">Gunakan akun Google yang terdaftar untuk mengakses workspace.</p>`:status.configured?`<form id="login-form"><label for="login-email">Alamat email</label><input id="login-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="nama@gmail.com"><button class="btn primary" type="submit">Kirim link login</button></form><p>Tanpa password. Buka tautan dari email di browser ini.</p>`:'<p>Login belum diaktifkan. Administrator perlu menyelesaikan konfigurasi akses akun.</p>'}<p id="login-message" role="status">${esc(message||(providerError==='cancelled'?'Proses masuk dibatalkan. Silakan pilih akun kembali.':''))}</p><div class="login-team-note">${icon('check')}Akses terbatas untuk tim internal</div></section></main>`;
@@ -165,3 +166,21 @@ async function refreshSharedWorkspace(){
 window.addEventListener('focus',refreshSharedWorkspace);
 document.addEventListener('visibilitychange',refreshSharedWorkspace);
 setInterval(refreshSharedWorkspace,30000);
+
+function showSessionNotice(){
+ if(document.getElementById('session-notice'))return;
+ const notice=document.createElement('div');notice.id='session-notice';notice.className='notice';notice.setAttribute('role','alert');notice.style.cssText='position:fixed;top:0;left:0;right:0;z-index:10000';
+ notice.innerHTML='<span>Sesi perlu diperbarui. Isian Anda tetap terbuka. <a href="/?login=google" target="_blank" rel="noopener">Masuk kembali di tab baru</a>, lalu kembali ke tab ini dan coba Simpan lagi.</span>';
+ document.body.append(notice);
+}
+let sessionRenewal=null;
+async function keepSessionAlive(){
+ if(!state||document.hidden)return;
+ if(sessionRenewal)return sessionRenewal;
+ const renew=()=>api('refresh-session','POST',{});
+ sessionRenewal=(navigator.locks?navigator.locks.request('jbt-session-refresh',renew):renew()).catch(e=>{if(state)toast(e.message);}).finally(()=>{sessionRenewal=null;});
+ return sessionRenewal;
+}
+setInterval(keepSessionAlive,10*60*1000);
+window.addEventListener('focus',keepSessionAlive);
+document.addEventListener('visibilitychange',keepSessionAlive);

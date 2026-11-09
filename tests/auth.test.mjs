@@ -21,7 +21,7 @@ test('callback without verifier never exchanges the login code',async()=>{setup(
 test('callback validates provider identity before setting session and redirects to fixed origin',async()=>{setup();globalThis.fetch=async(url,options)=>{if(url.includes('/token?')){assert.equal(JSON.parse(options.body).auth_code,'test-code');return response({access_token:'session-value',expires_in:3600});}return response(user);};const r=await request('auth-callback&code=test-code',{headers:{cookie:'tp_login='+'a'.repeat(43)}});assert.equal(r.statusCode,303);assert.equal(r.headers.Location,'https://fleet.example.com/');assert.match(r.headers['Set-Cookie'][1],/^tp_session=session-value; HttpOnly; SameSite=Lax; Path=\/; Max-Age=3600; Secure$/);});
 test('expired or reused callback code is rejected',async()=>{setup();globalThis.fetch=async()=>response({},400);const r=await request('auth-callback&code=expired',{headers:{cookie:'tp_login='+'a'.repeat(43)}});assert.equal(r.statusCode,401);assert.equal(r.headers['Set-Cookie'].length,1);});
 test('authenticated writes still enforce origin and domain validation',async()=>{setup();globalThis.fetch=async()=>response(user);assert.equal((await request('state',{method:'PUT',body:empty(),headers:{cookie:'tp_session=test',origin:'https://evil.example'}})).statusCode,403);const invalid=empty();invalid.transactions=[{id:'invalid'}];assert.equal((await request('state',{method:'PUT',body:invalid,headers:{cookie:'tp_session=test'}})).statusCode,422);});
-test('logout clears both HttpOnly cookies',async()=>{setup();const r=await request('logout',{method:'POST'});assert.equal(r.statusCode,200);assert.equal(r.headers['Set-Cookie'].length,2);for(const c of r.headers['Set-Cookie'])assert.match(c,/Max-Age=0; Secure/);});
+test('logout clears all HttpOnly session cookies',async()=>{setup();const r=await request('logout',{method:'POST'});assert.equal(r.statusCode,200);assert.equal(r.headers['Set-Cookie'].length,3);for(const c of r.headers['Set-Cookie'])assert.match(c,/Max-Age=0; Secure/);});
 
 test('temporary open mode only permits browser storage, never server financial data',async()=>{setup();process.env.REQUIRE_EMAIL_LOGIN='0';process.env.VERCEL='1';delete process.env.UPSTASH_REDIS_REST_URL;delete process.env.UPSTASH_REDIS_REST_TOKEN;const status=await request('status');assert.equal(status.body.authenticated,true);assert.equal(status.body.access,'browser');assert.equal((await request('state')).statusCode,503);assert.equal((await request('state',{method:'PUT',body:empty()})).statusCode,503);process.env.UPSTASH_REDIS_REST_URL='https://redis.example.com';process.env.UPSTASH_REDIS_REST_TOKEN='test';assert.equal((await request('state')).statusCode,401);delete process.env.VERCEL;delete process.env.UPSTASH_REDIS_REST_URL;delete process.env.UPSTASH_REDIS_REST_TOKEN;assert.equal((await request('state')).statusCode,401);});
 
@@ -44,4 +44,46 @@ test('control API writes authenticate actor, reject foreign origins and detect c
  assert.equal((await request('rit-control',{method:'PUT',headers,body:{...body,revision:1}})).statusCode,409);
  const r=await request('rit-control',{method:'PUT',headers,body});assert.equal(r.statusCode,200);assert.equal(r.body.audit[0].by,user.email);assert.match(patch.url,/revision=eq.0/);assert.equal(patch.body.revision,1);
  globalThis.fetch=async url=>String(url).includes('/auth/v1/user')?response(user):String(url).includes('revision=eq.')?response([]):response([{revision:0,state}]);assert.equal((await request('rit-control',{method:'PUT',headers,body})).statusCode,409);
+});
+
+test('new login remembers a rotating refresh token in a secure HttpOnly cookie for 30 days',async()=>{
+ setup();globalThis.fetch=async url=>String(url).includes('/token?')?response({access_token:'access-new',refresh_token:'refresh-new',expires_in:3600}):response(user);
+ const r=await request('auth-callback&code=test-code',{headers:{cookie:'tp_login='+'a'.repeat(43)}});
+ assert.equal(r.statusCode,303);assert.ok(r.headers['Set-Cookie'].some(x=>/^tp_refresh=refresh-new; HttpOnly; SameSite=Lax; Path=\/; Max-Age=2592000; Secure$/.test(x)));assert.equal(r.body,undefined);
+});
+test('expired access automatically refreshes and forwards the new token on the original data request',async()=>{
+ setup();process.env.PUBLIC_EXCEL_IMPORT='1';let rotated=0;
+ globalThis.fetch=async(url,options)=>{
+  if(String(url).includes('/token?grant_type=refresh_token')){assert.equal(JSON.parse(options.body).refresh_token,'refresh-old');rotated++;return response({access_token:'access-new',refresh_token:'refresh-new',expires_in:3600});}
+  if(String(url).includes('/auth/v1/user'))return options.headers.Authorization==='Bearer access-new'?response(user):response({},401);
+  assert.equal(options.headers.Authorization,'Bearer access-new');return response([{state:empty()}]);
+ };
+ const r=await request('initial-data',{headers:{cookie:'tp_session=expired; tp_refresh=refresh-old'}});
+ assert.equal(r.statusCode,200);assert.equal(rotated,1);assert.ok(r.headers['Set-Cookie'].some(x=>x.startsWith('tp_refresh=refresh-new;')));
+ assert.ok(!JSON.stringify(r.body).includes('refresh-new'));
+});
+test('a browser can resume a session when its access cookie expired while closed',async()=>{
+ setup();globalThis.fetch=async url=>String(url).includes('/token?')?response({access_token:'access-new',refresh_token:'refresh-new',expires_in:3600}):response(user);
+ const r=await request('status',{headers:{cookie:'tp_refresh=refresh-old'}});assert.equal(r.body.authenticated,true);assert.equal(r.body.email,user.email);
+});
+test('refresh only accepts same-origin POST requests and does not expose tokens',async()=>{
+ setup();globalThis.fetch=()=>{throw Error('No call expected');};assert.equal((await request('refresh-session')).statusCode,405);assert.equal((await request('refresh-session',{method:'POST',headers:{origin:'https://foreign.example'}})).statusCode,403);
+ globalThis.fetch=async url=>String(url).includes('/token?')?response({access_token:'access-new',refresh_token:'refresh-new',expires_in:3600}):response(user);
+ const r=await request('refresh-session',{method:'POST',headers:{cookie:'tp_refresh=refresh-old'}});assert.deepEqual(r.body,{authenticated:true});
+});
+test('revoked refresh sessions require login; temporary provider outages do not erase cookies',async()=>{
+ setup();const headers={cookie:'tp_refresh=revoked'};
+ globalThis.fetch=async()=>response({},400);const revoked=await request('refresh-session',{method:'POST',headers});assert.equal(revoked.statusCode,401);assert.equal(revoked.headers['Set-Cookie'].length,2);assert.ok(revoked.headers['Set-Cookie'].every(x=>x.includes('Max-Age=0')));
+ globalThis.fetch=async()=>response({},503);const outage=await request('refresh-session',{method:'POST',headers});assert.equal(outage.statusCode,500);assert.equal(outage.headers['Set-Cookie'],undefined);
+ globalThis.fetch=async()=>response({},503);const userOutage=await request('status',{headers:{cookie:'tp_session=access; tp_refresh=refresh'}});assert.equal(userOutage.statusCode,500);assert.equal(userOutage.headers['Set-Cookie'],undefined);
+});
+test('refresh checks the current allowlist and never accepts a different identity or malformed session',async()=>{
+ setup();
+ for(const account of [{...user,email:'other@example.com'},{...user,email_confirmed_at:null}]){
+  globalThis.fetch=async url=>String(url).includes('/token?')?response({access_token:'access-new',refresh_token:'refresh-new',expires_in:3600}):response(account);
+  assert.equal((await request('refresh-session',{method:'POST',headers:{cookie:'tp_refresh=old'}})).statusCode,401);
+ }
+ globalThis.fetch=async(url,options)=>String(url).includes('/token?')?response({access_token:'access-new',refresh_token:'refresh-new',expires_in:3600}):response({...user,id:options.headers.Authorization==='Bearer old'?'original':'different'});
+ assert.equal((await request('refresh-session',{method:'POST',headers:{cookie:'tp_session=old; tp_refresh=refresh'}})).statusCode,401);
+ globalThis.fetch=async()=>response({access_token:'unsafe;cookie',refresh_token:'valid',expires_in:3600});const malformed=await request('refresh-session',{method:'POST',headers:{cookie:'tp_refresh=old'}});assert.equal(malformed.statusCode,500);assert.equal(malformed.headers['Set-Cookie'],undefined);
 });
