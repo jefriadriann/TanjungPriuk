@@ -1,3 +1,4 @@
+import {sharedWorkspaceRequest} from '../lib/shared-workspace.mjs';
 import {controlRequest} from '../lib/rit-control.mjs';
 import {randomUUID} from 'node:crypto';
 import {publicImport} from '../lib/public-import.mjs';
@@ -9,7 +10,8 @@ export default async function handler(req,res){
  const send=(code,body)=>{res.statusCode=code;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(body));};
  try{
   const action=new URL(req.url,'http://localhost').searchParams.get('action')||'state';
-  const storage=cloud()?'cloud':process.env.VERCEL?'browser':'local';
+  const storage=cloud()?'cloud':process.env.VERCEL&&process.env.REQUIRE_EMAIL_LOGIN!=='0'?'cloud':process.env.VERCEL?'browser':'local';
+  const sharedWorkspace=Boolean(process.env.VERCEL&&!cloud()&&storage==='cloud');
   if(['login','google-login','logout','auth-callback'].includes(action))return await authAction(req,res,action,send);
   // Temporary open access is restricted to browser storage; server data stays protected.
   if(storage==='browser'&&process.env.REQUIRE_EMAIL_LOGIN==='0'){
@@ -19,7 +21,7 @@ export default async function handler(req,res){
   }
   const auth=config();
   const user=await identity(req,auth);
-  if(action==='status'&&req.method==='GET')return send(200,{configured:Boolean(auth),access:'email',storage,authenticated:Boolean(user),email:user?.email,googleLogin:Boolean(auth?.googleEnabled),publicImport:process.env.PUBLIC_EXCEL_IMPORT==='1'});
+  if(action==='status'&&req.method==='GET')return send(200,{configured:Boolean(auth),access:'email',storage,authenticated:Boolean(user),sharedWorkspace,email:user?.email,googleLogin:Boolean(auth?.googleEnabled),publicImport:process.env.PUBLIC_EXCEL_IMPORT==='1'});
   if(!auth)return send(503,{error:'Login belum dikonfigurasi. Hubungi administrator.'});
   if(!user)return send(401,{error:'Silakan masuk melalui link email.'});
   if(!['GET','PUT'].includes(req.method))return send(405,{error:'Metode tidak didukung.'});
@@ -27,6 +29,11 @@ export default async function handler(req,res){
   if(action==='rit-control'){
    if(req.method==='PUT'&&(!sameOrigin(req,auth)||!req.headers['content-type']?.startsWith('application/json')))return send(403,{error:'Permintaan tidak valid.'});
    return await controlRequest(req,auth,user,sessionToken(req),send);
+  }
+  if(sharedWorkspace&&['state','migrate-browser'].includes(action)){
+   if(req.method==='PUT'&&(!sameOrigin(req,auth)||!req.headers['content-type']?.startsWith('application/json')))return send(403,{error:'Permintaan tidak valid.'});
+   if(action==='migrate-browser'&&req.method!=='PUT')return send(405,{error:'Metode tidak didukung.'});
+   return await sharedWorkspaceRequest(req,auth,user,sessionToken(req),send);
   }
   if(storage==='browser')return send(503,{error:'Mode browser aktif. Data disimpan di browser perangkat Anda.'});
   if(req.method==='PUT'){

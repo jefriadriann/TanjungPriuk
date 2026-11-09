@@ -4,6 +4,8 @@ Internal trucking monitoring: client-first analytics, transactions, fleet, trips
 
 ## Current access and storage
 
+**Update:** authenticated Vercel deployments now share the financial workspace through the existing private Supabase control row. Browser-local storage applies only to temporary open-access mode. See [shared workspace and browser migration](docs/shared-workspace.md) for recovery, concurrency checks and migration limitations. Older browser-storage descriptions below document the previous behavior.
+
 Login uses a one-time email link through Supabase Auth. Only confirmed email addresses in `AUTH_ALLOWED_EMAILS` can access the workspace API. Missing auth configuration denies access. See [email login setup](docs/email-login.md) before deployment.
 
 - Vercel without Redis: authenticated users use localStorage in their browser. This data is not shared across devices. Logging out does not erase previously downloaded browser data; use trusted devices and export backups regularly.
