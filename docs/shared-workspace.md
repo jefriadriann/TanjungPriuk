@@ -13,3 +13,20 @@ Data yang hanya tersimpan pada perangkat yang belum membuka versi baru belum dap
 Aplikasi memeriksa pembaruan ketika jendela aktif kembali dan setiap 30 detik. Pembaruan tidak mengganti formulir terbuka atau draft Accounting. Menyimpan data dengan revisi lama ditolak; draft tetap tersedia untuk ditinjau sebelum memuat ulang. Tidak ada fallback ke simpan lokal saat database gagal.
 
 Verifikasi: pengujian pemulihan November, migrasi browser idempoten, pelestarian konflik/tombstone, dua perangkat, compare-and-set bersamaan, dan penolakan snapshot uang jalan lama. Data uji sintetis; tidak ada data keuangan produksi di Git.
+
+## Audit seluruh menu
+
+| Menu | Data yang disimpan |
+| --- | --- |
+| Buku transaksi dan Accounting | Koleksi transaksi yang sama, termasuk impor dan penghapusan |
+| Klien & Revenue | Profil klien; perhitungan revenue membaca transaksi bersama |
+| Armada | Master, status, serta tanggal servis dan dokumen |
+| Operasional | Perjalanan dan status pengiriman |
+| Laporan mingguan | Catatan dan status laporan |
+| Laporan bulanan | Catatan, penyusun dan status per bulan/cakupan armada |
+| Kontrol Rit | Pendanaan dan catatan penyelesaian rit |
+| Ringkasan bisnis | Membaca data bersama; tidak memiliki penyimpanan input terpisah |
+
+Pengujian integrasi memverifikasi semua koleksi melalui handler API dengan dua akun tim berbeda. Semua permintaan data pada konfigurasi produksi Supabase menuju satu tabel privat yang sama. Perubahan rit oleh akun kedua tetap terbaca akun pertama dan tidak menghapus data menu lain. Penulisan workspace dari revisi lama ditolak. Gangguan database menghasilkan kegagalan simpan, bukan fallback localStorage.
+
+Akun email tambahan harus dimasukkan ke allowlist aplikasi **dan** kebijakan RLS Supabase; akun yang belum diberi akses tidak otomatis dapat membaca atau mengubah data. Isian yang belum disimpan tetap merupakan draft. Salinan browser lama hanya dipakai untuk migrasi/cadangan; filter tampilan dan draft bukan catatan bisnis yang sudah tersimpan. Hindari mengaktifkan ulang mode publik sementara atau backend Redis terpisah pada deployment ini, karena audit lintas menu ini menggunakan konfigurasi produksi Supabase terautentikasi.
