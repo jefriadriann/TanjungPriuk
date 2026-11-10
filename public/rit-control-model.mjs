@@ -61,6 +61,19 @@ export function applyControlCommand(current,command,{actor,id,at,transactions,ve
  const snapshot=key=>transactions.find(t=>t.id===key);
  const addSources=(packageItem,allocations)=>{if(!Array.isArray(allocations)||allocations.length>300)fail('Pilih sumber transaksi yang valid.');for(const a of allocations){const row=snapshot(a.id);if(!row)fail('Sumber transaksi tidak ditemukan. Muat ulang Accounting.');if(!integer(a.rit,row.rit)||allocatedRit(next,row.id)+(next.packages.includes(packageItem)?0:packageItem.sources.filter(s=>s.row.id===row.id).reduce((n,s)=>n+s.rit,0))+a.rit>row.rit)fail('Rit sumber sudah digunakan paket lain.');const existing=packageItem.sources.find(s=>s.row.id===row.id);if(existing){if(sourceSignature(existing.row)!==sourceSignature(row))fail('Cocokkan sumber yang berubah sebelum menambah alokasi.');existing.rit+=a.rit;}else packageItem.sources.push({row:structuredClone(row),rit:a.rit});}};
  if(c.type==='sync-funding'){
+  const deletedCash=new Set(deletedTransactionIds);
+  const removed=next.packages.filter(item=>item.payments.concat(item.voidedPayments||[]).some(pay=>deletedCash.has(pay.sourceId))||deletedCash.has(item.id.replace(/^cash-/,''))&&item.simple);
+  if(removed.length){
+   const removedIds=new Set(removed.map(item=>item.id));
+   next.deletedPackages=[...(next.deletedPackages||[]),...removed.map(item=>({package:structuredClone(item),by:actor,at,note:'Transaksi uang jalan dihapus dari Buku transaksi'}))];
+   next.packages=next.packages.filter(item=>!removedIds.has(item.id));
+   // A surviving legacy control must no longer spend a deleted control's carry.
+   for(const item of next.packages.filter(item=>removedIds.has(item.carryFrom))){
+    item.carryHistory=[...(item.carryHistory||[]),{carryFrom:item.carryFrom,closed:structuredClone(item.closed),by:actor,at}];
+    item.carryFrom='';
+    if(item.closed){const summary=packageSummary(item,next);if(summary.shortfall)item.closed=null;else item.closed.balance=summary.balance;}
+   }
+  }
   for(const item of next.packages.filter(x=>!x.closed)){const removed=item.payments.filter(pay=>pay.sourceId&&(deletedTransactionIds.includes(pay.sourceId)||snapshot(pay.sourceId)&&(!isTravelCash(snapshot(pay.sourceId))||snapshot(pay.sourceId).plate!==item.plate)));if(removed.length){item.voidedPayments=[...(item.voidedPayments||[]),...removed.map(pay=>({...pay,voidedBy:actor,voidedAt:at,note:'Sumber transaksi dihapus atau berubah'}))];item.payments=item.payments.filter(pay=>!removed.includes(pay));}const oldSources=item.sources.filter(source=>deletedTransactionIds.includes(source.row.id));if(oldSources.length){item.reconciliations=[{by:actor,at,before:structuredClone(item.sources),note:'Revenue lama dihapus dari Buku transaksi'},...(item.reconciliations||[])];item.sources=item.sources.filter(source=>!deletedTransactionIds.includes(source.row.id));}}
   for(const t of transactions.filter(t=>isTravelCash(t)&&!(next.excludedFundingIds||[]).includes(t.id)&&!deletedTransactionIds.includes(t.id))){
    if(!date(t.date)||t.date>today())continue;
@@ -138,6 +151,7 @@ export function applyControlCommand(current,command,{actor,id,at,transactions,ve
 
 export function fundingNeedsSync(control,transactions,deletedTransactionIds=[]){
  deletedTransactionIds=[...new Set([...(control.removedSourceIds||[]),...deletedTransactionIds])];
+ if(control.packages.some(p=>p.payments.concat(p.voidedPayments||[]).some(pay=>deletedTransactionIds.includes(pay.sourceId))||p.simple&&deletedTransactionIds.includes(p.id.replace(/^cash-/,''))))return true;
  if(control.packages.some(p=>!p.closed&&(p.sources.some(x=>deletedTransactionIds.includes(x.row.id))||p.payments.some(pay=>pay.sourceId&&(deletedTransactionIds.includes(pay.sourceId)||transactions.some(t=>t.id===pay.sourceId&&(!isTravelCash(t)||t.plate!==p.plate)))))))return true;
  return transactions.filter(t=>isTravelCash(t)&&!(control.excludedFundingIds||[]).includes(t.id)&&!deletedTransactionIds.includes(t.id)).some(t=>{if(!date(t.date)||t.date>today())return false;const p=control.packages.find(p=>p.payments.some(x=>x.sourceId===t.id));if(!p)return !control.packages.some(p=>p.id==='cash-'+t.id&&p.closed);const pay=p.payments.find(x=>x.sourceId===t.id);return !p.closed&&(pay.amount!==t.expense||pay.date!==t.date);});
 }

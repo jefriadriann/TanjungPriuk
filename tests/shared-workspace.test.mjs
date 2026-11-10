@@ -73,8 +73,13 @@ test('all editable menus share one database across two approved accounts and a s
   assert.equal((await call('second','state',stale.body)).statusCode,409);
   assert.equal((await call('first')).body.transactions.length,1);
   assert.deepEqual([...destinations],['/rest/v1/tp_rit_control']);
+  const removal=await call('first');removal.body.transactions=[];
+  assert.equal((await call('first','state',removal.body)).statusCode,200);
+  assert.equal(db.state.packages.length,0);
+  assert.equal(db.state.deletedPackages.at(-1).package.actuals[0].rit,2);
+  assert.equal((await call('second','rit-control')).body.packages.length,0);
   globalThis.fetch=async()=>{throw Error('Database unavailable');};
   assert.equal((await call('first','state',saved.body)).statusCode,500);
-  assert.equal(db.state.workspace.transactions.length,1);
+  assert.equal(db.state.workspace.transactions.length,0);
  }finally{globalThis.fetch=oldFetch;for(const k of names){if(before[k]===undefined)delete process.env[k];else process.env[k]=before[k];}}
 });
