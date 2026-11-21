@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {empty,validate} from '../lib/model.mjs';
-import {emptyControl,applyControlCommand,unlinkedTravelCash} from '../public/rit-control-model.mjs';
+import {emptyControl,applyControlCommand,unlinkedTravelCash,controlTotals,packageSummary} from '../public/rit-control-model.mjs';
 import {mergeBrowserWorkspace,recoverTravelCash,sharedWorkspaceRequest} from '../lib/shared-workspace.mjs';
 const cash={id:'cash-nov',plate:'B 9322 UOM',date:'2026-11-01',period:'November 2026',description:'Uang Jalan 5 Rit',type:'Pengeluaran',category:'Uang jalan',income:0,expense:1000000,rit:0,customer:''};
 const stamp={by:'team@example.com',at:'2026-11-09T10:00:00Z'};
@@ -168,5 +168,21 @@ test('cash migration preserves existing orders and direct entry updates the shar
   assert.equal(correction.data.workspace.transactions.find(t=>t.id===cash.id).expense,900000);
   assert.deepEqual((await call()).data,correction.data);
   assert.equal(writes,4);
+  const custom=await call({revision:correction.data.revision,command:{type:'save-cash',plate:cash.plate,date:cash.date,description:'Uang jalan tambahan',amount:750000}});
+  assert.equal(custom.status,200);
+  const unplanned=custom.data.packages.at(-1);
+  assert.equal(unplanned.target,null);
+  assert.equal(unplanned.rate,null);
+  const recorded=await call({revision:custom.data.revision,command:{type:'record-rit',packageId:unplanned.id,date:cash.date,rit:2,description:'Order tambahan'}});
+  assert.equal(recorded.status,200);
+  const entry=recorded.data.packages.at(-1);
+  assert.equal(packageSummary(entry,recorded.data).balance,null);
+  assert.equal(packageSummary(entry,recorded.data).remaining,null);
+  const before=controlTotals(correction.data.packages,correction.data),after=controlTotals(recorded.data.packages,recorded.data);
+  assert.deepEqual(after,{...before,funded:before.funded+750000,verified:before.verified+2});
+  const closed=await call({revision:recorded.data.revision,command:{type:'close',packageId:unplanned.id,note:'Order selesai'}});
+  assert.equal(closed.status,200);
+  assert.equal(closed.data.packages.at(-1).closed.balance,null);
+
  }finally{globalThis.fetch=oldFetch;}
 });
