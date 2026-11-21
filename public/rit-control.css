@@ -23,3 +23,5 @@
     border-bottom: 1px solid #ced9e7;
   }
 }
+
+.rc-form-grid .rc-field[hidden]{display:none}
