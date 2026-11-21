@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {empty,validate} from '../lib/model.mjs';
-import {emptyControl,applyControlCommand} from '../public/rit-control-model.mjs';
+import {emptyControl,applyControlCommand,unlinkedTravelCash} from '../public/rit-control-model.mjs';
 import {mergeBrowserWorkspace,recoverTravelCash,sharedWorkspaceRequest} from '../lib/shared-workspace.mjs';
 const cash={id:'cash-nov',plate:'B 9322 UOM',date:'2026-11-01',period:'November 2026',description:'Uang Jalan 5 Rit',type:'Pengeluaran',category:'Uang jalan',income:0,expense:1000000,rit:0,customer:''};
 const stamp={by:'team@example.com',at:'2026-11-09T10:00:00Z'};
@@ -115,5 +115,58 @@ test('opening Kontrol Rit archives a previously deleted cash control from all st
   assert.equal(result.deletedPackages[0].package.id,control.packages[0].id);
   assert.deepEqual(await read(),result);
   assert.equal(writes,1);
+ }finally{globalThis.fetch=oldFetch;}
+});
+
+test('cash migration preserves existing orders and direct entry updates the shared ledger exactly once',async()=>{
+ const {controlRequest}=await import('../lib/rit-control.mjs');
+ const oldFetch=globalThis.fetch;
+ const missing={...cash,id:'pending',date:null,expense:null,customer:'Klien lama'};
+ const control=applyControlCommand(funded(),{type:'record-rit',packageId:'cash-'+cash.id,plate:cash.plate,date:cash.date,description:'Order sebelumnya',rit:2},{actor:stamp.by,id:'previous-order',at:stamp.at,transactions:[cash]});
+ control.workspace=workspace([cash,{...cash,id:'another-receipt'},missing]);
+ let db={revision:control.revision,state:control},writes=0;
+ globalThis.fetch=async(url,options={})=>{
+  if(options.method==='PATCH'){
+   assert.ok(url.endsWith('&revision=eq.'+db.revision));
+   db=JSON.parse(options.body);writes++;
+  }
+  return Response.json([structuredClone(db)]);
+ };
+ const call=async body=>{
+  let result;
+  await controlRequest({method:body?'PUT':'GET',body},{url:'https://db.example',key:'publishable'},{email:stamp.by},'session',(status,data)=>result={status,data});
+  return result;
+ };
+ try{
+  const migrated=(await call()).data;
+  assert.equal(migrated.packages.length,2);
+  assert.deepEqual(migrated.packages[0],control.packages[0]);
+  assert.deepEqual(unlinkedTravelCash(migrated,migrated.workspace.transactions),[missing]);
+  assert.deepEqual((await call()).data,migrated);
+  assert.equal(writes,1);
+
+  const command={type:'save-cash',plate:cash.plate,date:cash.date,description:'Pendanaan baru',amount:600000,target:3,rate:200000};
+  const first=await call({revision:migrated.revision,command});
+  assert.equal(first.status,200);
+  assert.equal(first.data.workspace.revision,migrated.workspace.revision+1);
+  const row=first.data.workspace.transactions.at(-1),p=first.data.packages.at(-1);
+  assert.equal(p.payments[0].sourceId,row.id);
+  assert.equal(p.plate,row.plate);
+  assert.equal(p.target,3);
+  assert.equal((await call({revision:migrated.revision,command})).status,409);
+
+  const restored=await call({revision:first.data.revision,command:{...command,sourceId:missing.id}});
+  assert.equal(restored.status,200);
+  assert.equal(restored.data.packages.length,4);
+  assert.equal(restored.data.workspace.transactions.find(t=>t.id===missing.id).customer,missing.customer);
+  assert.equal(unlinkedTravelCash(restored.data,restored.data.workspace.transactions).length,0);
+
+  const correction=await call({revision:restored.data.revision,command:{...command,sourceId:cash.id,amount:900000}});
+  assert.equal(correction.status,200);
+  assert.deepEqual(correction.data.packages[0].actuals,control.packages[0].actuals);
+  assert.equal(correction.data.packages[0].payments[0].amount,900000);
+  assert.equal(correction.data.workspace.transactions.find(t=>t.id===cash.id).expense,900000);
+  assert.deepEqual((await call()).data,correction.data);
+  assert.equal(writes,4);
  }finally{globalThis.fetch=oldFetch;}
 });

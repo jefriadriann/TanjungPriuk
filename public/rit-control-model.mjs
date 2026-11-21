@@ -1,4 +1,4 @@
-import {validPlate,plates,clientKey,today,isTravelCash} from './domain.mjs';
+import {validPlate,plates,clientKey,today,isTravelCash,isTravelCashEntry} from './domain.mjs';
 export const emptyControl=()=>({version:1,revision:0,owners:['','',''],packages:[],audit:[]});
 const fail=message=>{throw Error(message);};
 const text=(v,max=200)=>typeof v==='string'&&v.trim().length>0&&v.length<=max;
@@ -31,6 +31,14 @@ export function controlTotals(packages,state){
 }
 export function allocatedRit(control,id){return control.packages.reduce((n,p)=>n+p.sources.filter(s=>s.row.id===id).reduce((a,s)=>a+s.rit,0),0);}
 export function sourceConflicts(p,transactions){return p.sources.filter(s=>{const row=transactions.find(t=>t.id===s.row.id);return !row||sourceSignature(row)!==sourceSignature(s.row);});}
+export function unlinkedTravelCash(control,transactions){
+ const handled=new Set([...(control.excludedFundingIds||[]),...(control.removedSourceIds||[])]);
+ for(const p of control.packages){
+  if(p.closed&&p.simple&&p.id.startsWith('cash-'))handled.add(p.id.slice(5));
+  for(const payment of [...p.payments,...(p.voidedPayments||[])])handled.add(payment.sourceId);
+ }
+ return transactions.filter(t=>isTravelCashEntry(t)&&!handled.has(t.id));
+}
 export function validateControl(s){
  if(!s||s.version!==1||!integer(s.revision)||!Array.isArray(s.owners)||s.owners.length!==3||s.owners.some(x=>typeof x!=='string'||x.length>100)||!Array.isArray(s.packages)||s.packages.length>2000||!Array.isArray(s.audit))fail('Format kontrol rit tidak valid.');
  if(s.vehiclePlates!==undefined&&(!Array.isArray(s.vehiclePlates)||s.vehiclePlates.length>1000||s.vehiclePlates.some(p=>!validPlate(p))))fail('Daftar armada kontrol tidak valid.');
@@ -59,6 +67,11 @@ export function applyControlCommand(current,command,{actor,id,at,transactions,ve
  next.vehiclePlates=[...new Set([...plates,...(current.vehiclePlates||[]),...vehiclePlates])];
  deletedTransactionIds=[...new Set([...(current.removedSourceIds||[]),...deletedTransactionIds])];next.removedSourceIds=deletedTransactionIds;
  const snapshot=key=>transactions.find(t=>t.id===key);
+ const cashPackage=(row,target,rate,packageId,paymentId)=>({
+  id:packageId,simple:true,name:row.description.trim().slice(0,200)||'Uang jalan',plate:row.plate,driver:'',customer:row.customer,owner:'',
+  date:row.date,target,rate,sources:[],payments:[{id:paymentId,amount:row.expense,date:row.date,reference:'Uang jalan · '+row.id,sourceId:row.id,by:actor,at}],
+  proofs:[],actuals:[],carryFrom:'',createdBy:actor,createdAt:at,closed:null,
+ });
  const addSources=(packageItem,allocations)=>{if(!Array.isArray(allocations)||allocations.length>300)fail('Pilih sumber transaksi yang valid.');for(const a of allocations){const row=snapshot(a.id);if(!row)fail('Sumber transaksi tidak ditemukan. Muat ulang Accounting.');if(!integer(a.rit,row.rit)||allocatedRit(next,row.id)+(next.packages.includes(packageItem)?0:packageItem.sources.filter(s=>s.row.id===row.id).reduce((n,s)=>n+s.rit,0))+a.rit>row.rit)fail('Rit sumber sudah digunakan paket lain.');const existing=packageItem.sources.find(s=>s.row.id===row.id);if(existing){if(sourceSignature(existing.row)!==sourceSignature(row))fail('Cocokkan sumber yang berubah sebelum menambah alokasi.');existing.rit+=a.rit;}else packageItem.sources.push({row:structuredClone(row),rit:a.rit});}};
  if(c.type==='sync-funding'){
   const deletedCash=new Set(deletedTransactionIds);
@@ -74,14 +87,37 @@ export function applyControlCommand(current,command,{actor,id,at,transactions,ve
     if(item.closed){const summary=packageSummary(item,next);if(summary.shortfall)item.closed=null;else item.closed.balance=summary.balance;}
    }
   }
-  for(const item of next.packages.filter(x=>!x.closed)){const removed=item.payments.filter(pay=>pay.sourceId&&(deletedTransactionIds.includes(pay.sourceId)||snapshot(pay.sourceId)&&(!isTravelCash(snapshot(pay.sourceId))||snapshot(pay.sourceId).plate!==item.plate)));if(removed.length){item.voidedPayments=[...(item.voidedPayments||[]),...removed.map(pay=>({...pay,voidedBy:actor,voidedAt:at,note:'Sumber transaksi dihapus atau berubah'}))];item.payments=item.payments.filter(pay=>!removed.includes(pay));}const oldSources=item.sources.filter(source=>deletedTransactionIds.includes(source.row.id));if(oldSources.length){item.reconciliations=[{by:actor,at,before:structuredClone(item.sources),note:'Revenue lama dihapus dari Buku transaksi'},...(item.reconciliations||[])];item.sources=item.sources.filter(source=>!deletedTransactionIds.includes(source.row.id));}}
+  for(const item of next.packages.filter(x=>!x.closed)){const removed=item.payments.filter(pay=>pay.sourceId&&(deletedTransactionIds.includes(pay.sourceId)||snapshot(pay.sourceId)&&(!isTravelCashEntry(snapshot(pay.sourceId))||snapshot(pay.sourceId).plate!==item.plate)));if(removed.length){item.voidedPayments=[...(item.voidedPayments||[]),...removed.map(pay=>({...pay,voidedBy:actor,voidedAt:at,note:'Sumber transaksi dihapus atau berubah'}))];item.payments=item.payments.filter(pay=>!removed.includes(pay));}const oldSources=item.sources.filter(source=>deletedTransactionIds.includes(source.row.id));if(oldSources.length){item.reconciliations=[{by:actor,at,before:structuredClone(item.sources),note:'Revenue lama dihapus dari Buku transaksi'},...(item.reconciliations||[])];item.sources=item.sources.filter(source=>!deletedTransactionIds.includes(source.row.id));}}
+  const voided=new Set(next.packages.flatMap(p=>(p.voidedPayments||[]).map(pay=>pay.sourceId)));
   for(const t of transactions.filter(t=>isTravelCash(t)&&!(next.excludedFundingIds||[]).includes(t.id)&&!deletedTransactionIds.includes(t.id))){
    if(!date(t.date)||t.date>today())continue;
    const existing=next.packages.find(x=>x.payments.some(pay=>pay.sourceId===t.id));
    if(existing){if(!existing.closed){const pay=existing.payments.find(x=>x.sourceId===t.id);if(pay.amount!==t.expense||pay.date!==t.date){existing.paymentHistory=[...(existing.paymentHistory||[]),{...pay,changedAt:at,changedBy:actor}];pay.amount=t.expense;pay.date=t.date;}}continue;}
-   const target=Math.min(100,Math.max(1,Number(t.description.match(/(\d+)\s*rit\b/i)?.[1])||5));
-   const created={id:'cash-'+t.id,simple:true,name:t.description,plate:t.plate,driver:'',customer:'',owner:'',date:t.date,target,rate:Number.isSafeInteger(t.expense/target)?t.expense/target:200000,sources:[],payments:[{id:'payment-'+t.id,amount:t.expense,date:t.date,reference:'Buku transaksi · '+t.id,sourceId:t.id,by:actor,at}],proofs:[],actuals:[],carryFrom:'',createdBy:actor,createdAt:at,closed:null};
+   if(voided.has(t.id))continue;
+   const target=Math.min(100,Number(t.description.match(/(\d+)\s*rit\b/i)?.[1])||t.rit||5);
+   const unit=t.expense/target;
+   const created=cashPackage(t,target,integer(unit,1e9)&&unit?unit:200000,t.id.length<=95?'cash-'+t.id:'cash-'+id+'-'+next.packages.length,t.id.length<=92?'payment-'+t.id:'payment-'+id+'-'+next.packages.length);
    const prior=next.packages.find(x=>x.id===created.id);if(prior){if(!prior.closed)prior.payments.push(created.payments[0]);continue;}next.packages.push(created);
+  }
+ }else if(c.type==='save-cash'){
+  const row=snapshot(c.sourceId);
+  if(!row||!isTravelCash(row)||!date(row.date)||row.date>today()||!vehiclePlates.includes(row.plate))fail('Isi armada, tanggal, dan nominal uang jalan yang valid.');
+  const linked=next.packages.find(item=>item.payments.some(pay=>pay.sourceId===row.id));
+  if(linked){
+   if(linked.closed||linked.plate!==row.plate)fail('Uang jalan mengikuti armada dan status kontrol yang terhubung.');
+   const pay=linked.payments.find(x=>x.sourceId===row.id);
+   if(linked.simple&&linked.payments.length===1){
+    if([...(linked.actuals||[]),...linked.proofs].some(x=>x.date<row.date))fail('Tanggal uang jalan tidak boleh melewati tanggal rit atau bukti yang sudah tercatat.');
+    linked.date=row.date;
+   }
+   linked.paymentHistory=[...(linked.paymentHistory||[]),{...pay,changedAt:at,changedBy:actor}];
+   Object.assign(pay,{amount:row.expense,date:row.date});
+  }else{
+   if(!unlinkedTravelCash(next,[row]).length)fail('Uang jalan ini sudah pernah dibatalkan atau diarsipkan.');
+   if(!integer(c.target,100)||!c.target||!integer(c.rate,1e9)||!c.rate)fail('Isi target dan tarif rit yang valid.');
+   const prior=next.packages.find(item=>item.simple&&item.id==='cash-'+row.id);
+   if(prior)prior.payments.push(cashPackage(row,c.target,c.rate,id,id).payments[0]);
+   else next.packages.push(cashPackage(row,c.target,c.rate,id,id));
   }
  }else if(c.type==='delete-package'){
   if(!p||!text(c.note,1000))fail('Pilih kontrol rit dan isi alasan penghapusan.');
@@ -152,8 +188,9 @@ export function applyControlCommand(current,command,{actor,id,at,transactions,ve
 export function fundingNeedsSync(control,transactions,deletedTransactionIds=[]){
  deletedTransactionIds=[...new Set([...(control.removedSourceIds||[]),...deletedTransactionIds])];
  if(control.packages.some(p=>p.payments.concat(p.voidedPayments||[]).some(pay=>deletedTransactionIds.includes(pay.sourceId))||p.simple&&deletedTransactionIds.includes(p.id.replace(/^cash-/,''))))return true;
- if(control.packages.some(p=>!p.closed&&(p.sources.some(x=>deletedTransactionIds.includes(x.row.id))||p.payments.some(pay=>pay.sourceId&&(deletedTransactionIds.includes(pay.sourceId)||transactions.some(t=>t.id===pay.sourceId&&(!isTravelCash(t)||t.plate!==p.plate)))))))return true;
- return transactions.filter(t=>isTravelCash(t)&&!(control.excludedFundingIds||[]).includes(t.id)&&!deletedTransactionIds.includes(t.id)).some(t=>{if(!date(t.date)||t.date>today())return false;const p=control.packages.find(p=>p.payments.some(x=>x.sourceId===t.id));if(!p)return !control.packages.some(p=>p.id==='cash-'+t.id&&p.closed);const pay=p.payments.find(x=>x.sourceId===t.id);return !p.closed&&(pay.amount!==t.expense||pay.date!==t.date);});
+ if(control.packages.some(p=>!p.closed&&(p.sources.some(x=>deletedTransactionIds.includes(x.row.id))||p.payments.some(pay=>pay.sourceId&&(deletedTransactionIds.includes(pay.sourceId)||transactions.some(t=>t.id===pay.sourceId&&(!isTravelCashEntry(t)||t.plate!==p.plate)))))))return true;
+ const unlinked=new Set(unlinkedTravelCash(control,transactions).map(t=>t.id));
+ return transactions.filter(t=>isTravelCash(t)&&!(control.excludedFundingIds||[]).includes(t.id)&&!deletedTransactionIds.includes(t.id)).some(t=>{if(!date(t.date)||t.date>today())return false;const p=control.packages.find(p=>p.payments.some(x=>x.sourceId===t.id));if(!p)return unlinked.has(t.id);const pay=p.payments.find(x=>x.sourceId===t.id);return !p.closed&&(pay.amount!==t.expense||pay.date!==t.date);});
 }
 
 export function completedOrderSummary(packages){
