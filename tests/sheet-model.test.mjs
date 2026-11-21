@@ -10,3 +10,16 @@ test('currency/date parsing accepts explicit formats and rejects ambiguous or in
 test('Excel five-column paste ignores No, adds rows, and preserves other sheets',()=>{const rows=[blankRow('B 9322 UOM','Oktober 2026','start'),{...transaction('other'),plate:'B 9794 TM'}];let n=0;const next=pasteCells(rows,'start','date','1\t25/10/2026\tSynthetic expense\t\t200000\n2\t26/10/2026\tSynthetic income\t150000\t','B 9322 UOM','Oktober 2026',()=>String(++n));assert.equal(next.length,3);assert.equal(next[0].description,'Synthetic expense');assert.equal(next[2].income,'150000');assert.equal(next[2].category,'Pendapatan angkutan');assert.deepEqual(next[1],rows[1]);assert.equal(rows[0].description,'');assert.throws(()=>pasteCells(rows,'start','expense','10\t20','B 9322 UOM','Oktober 2026',()=>''));});
 
 test('editing unrelated fields preserves historical expense rit without counting it as income trips',()=>{const state=empty();state.transactions=[{...transaction(),rit:2}];const rows=draftRows(state);rows[0].description='Synthetic corrected text';const result=compileSheet(state,rows,0);assert.equal(result.state.transactions[0].rit,2);assert.equal(totals(result.state.transactions).rit,0);});
+
+test('Accounting hides road cash without changing it when another transaction is saved',()=>{
+ const cash={...transaction('cash'),category:'Uang Jalan',expense:null};
+ const state={...empty(),transactions:[cash,transaction()]};
+ const draft=draftRows(state);
+ assert.deepEqual(draft.map(row=>row.id),['old']);
+ draft[0].expense='500';
+ const result=compileSheet(state,draft,0);
+ assert.deepEqual(result.errors,[]);
+ assert.deepEqual(result.state.transactions.find(row=>row.id===cash.id),cash);
+ draft[0].category='Uang jalan';
+ assert.ok(compileSheet(state,draft,0).errors.some(error=>error.field==='category'));
+});

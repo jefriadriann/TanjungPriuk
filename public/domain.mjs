@@ -2,7 +2,7 @@ export const plates=['B 9322 UOM','B 9794 TM','B 9286 JG','T 9186 DC','B 9628 SY
 export const incomeCategories=['Bagi Hasil','Pendapatan angkutan','Sewa armada','Pendapatan lain'];
 export const expenseCategories=['Uang jalan','Biaya Koordinasi','Servis & sparepart','Ban','Oli','Garasi','Administrasi','Biaya lain','Langganan','Gaji pegawai','Operasional'];
 export const legacyExpenseCategories=['Bagi Hasil','Solar / BBM','Tol & parkir','Perlu cek'];
-export const transactionCategories=(type,current='')=>{const values=categoriesFor(type);return type==='Pengeluaran'&&legacyExpenseCategories.includes(categoryLabel(current))?[categoryLabel(current),...values]:values;};
+export const transactionCategories=(type,current='')=>{const values=categoriesFor(type).filter(category=>category!=='Uang jalan');return type==='Pengeluaran'&&legacyExpenseCategories.includes(categoryLabel(current))?[categoryLabel(current),...values]:values;};
 export const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 export const categoriesFor=type=>type==='Pemasukan'?incomeCategories:expenseCategories;
 export const categoryLabel=c=>c==='Pemasukan'?'Pendapatan angkutan':c==='Bagi hasil'?'Bagi Hasil':c==='Uang Jalan'?'Uang jalan':c==='Service & Sparepart'?'Servis & sparepart':c==='Lainnya'?'Biaya lain':c==='Pendapatan'?'Pendapatan angkutan':c==='Solar'?'Solar / BBM':c;
@@ -32,7 +32,8 @@ export const isCoordinationExpense=t=>t.type==='Pengeluaran'&&/\btap\s*75\b/i.te
 export const canonicalPlate=p=>p==='B 9186 JG'?'B 9286 JG':p;
 export const displayPlate=p=>!p||p==='all'?'Semua armada':p==='B 9286 JG'?'B 9186 JG':p;
 export const isProfitShare=t=>['Pemasukan','Pengeluaran'].includes(t.type)&&categoryLabel(t.category)==='Bagi Hasil';
-export const isTravelCash=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)==='Uang jalan'&&t.expense>0;
+export const isTravelCashEntry=t=>t.type==='Pengeluaran'&&categoryLabel(t.category)==='Uang jalan';
+export const isTravelCash=t=>isTravelCashEntry(t)&&t.expense>0;
 export const recordedRit=rows=>rows.filter(isProfitShare).reduce((n,t)=>n+(t.rit||0),0);
 export function fleetTotals(rows){const shares=rows.filter(isProfitShare),costs=rows.filter(t=>isFleetTransaction(t)&&!isProfitShare(t));return {income:shares.reduce((n,t)=>n+((t.type==='Pemasukan'?t.income:t.expense)||0),0),expense:totals(costs).expense,rit:recordedRit(rows)};}
 export function normalize(s){return {...s,transactions:Array.isArray(s.transactions)?s.transactions.map(t=>isCoordinationExpense(t)&&t.category==='Perlu cek'?{...t,category:'Biaya Koordinasi'}:t):s.transactions,clients:s.clients||[],monthlyReports:s.monthlyReports||[],audit:s.audit||[]};}

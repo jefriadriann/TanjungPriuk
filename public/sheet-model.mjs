@@ -1,6 +1,6 @@
-import {transactionCategories,categoriesFor,categoryLabel,normalize,validate,monthLabel} from './domain.mjs';
+import {transactionCategories,categoriesFor,categoryLabel,normalize,validate,monthLabel,isTravelCashEntry} from './domain.mjs';
 export const sheetFields=['date','description','income','expense'];
-export function draftRows(state){return state.transactions.map(t=>({...structuredClone(t),date:t.date||'',category:categoryLabel(t.category),income:t.type==='Pemasukan'?(t.income===null?'':String(t.income)):'',expense:t.type==='Pengeluaran'?(t.expense===null?'':String(t.expense)):''}));}
+export function draftRows(state){return state.transactions.filter(t=>!isTravelCashEntry(t)).map(t=>({...structuredClone(t),date:t.date||'',category:categoryLabel(t.category),income:t.type==='Pemasukan'?(t.income===null?'':String(t.income)):'',expense:t.type==='Pengeluaran'?(t.expense===null?'':String(t.expense)):''}));}
 export function sheetPeriod(row){return row.period|| (row.date&&/^\d{4}-\d{2}-\d{2}$/.test(row.date)?monthLabel(row.date.slice(0,7)):'Periode belum diisi');}
 export function rowType(row){return String(row.income).trim()!==''?'Pemasukan':String(row.expense).trim()!==''?'Pengeluaran':row.type||'Pengeluaran';}
 export function parseMoney(value){const raw=String(value??'').trim().replace(/^Rp\s*/i,'').replace(/\s/g,'');if(!raw)return null;let digits=raw;if(/^\d{1,3}(\.\d{3})+$/.test(raw))digits=raw.replaceAll('.','');else if(/^\d{1,3}(,\d{3})+$/.test(raw))digits=raw.replaceAll(',','');if(!/^\d+$/.test(digits)||!Number.isSafeInteger(Number(digits))||Number(digits)>1e13)throw Error('Isi rupiah bulat, tanpa minus. Contoh: 150000 atau 150.000.');return Number(digits);}
@@ -25,7 +25,7 @@ export function compileSheet(state,rows,baseRevision){
   transactions.push({...stored,date,description:row.description.trim(),type,category,customer:row.customer.trim(),rit,income:type==='Pemasukan'?income:0,expense:type==='Pengeluaran'?expense:0});
  }
  if(errors.length)return {errors};
- const next=normalize({...structuredClone(state),transactions});
+ const next=normalize({...structuredClone(state),transactions:[...transactions,...state.transactions.filter(isTravelCashEntry)]});
  try{validate(next);}catch(e){return {errors:[{message:e.message}]};}
  return {state:next,errors:[]};
 }
