@@ -179,7 +179,10 @@ test('cash migration preserves existing orders and direct entry updates the shar
   assert.equal(packageSummary(entry,recorded.data).balance,null);
   assert.equal(packageSummary(entry,recorded.data).remaining,null);
   const before=controlTotals(correction.data.packages,correction.data),after=controlTotals(recorded.data.packages,recorded.data);
-  assert.deepEqual(after,{...before,funded:before.funded+750000,verified:before.verified+2});
+  assert.equal(after.funded-before.funded,750000);
+  assert.equal(after.verified-before.verified,2);
+  assert.equal(after.netFunds-before.netFunds,350000);
+  assert.equal(after.netRit-before.netRit,1.75);
   const closed=await call({revision:recorded.data.revision,command:{type:'close',packageId:unplanned.id,note:'Order selesai'}});
   assert.equal(closed.status,200);
   assert.equal(closed.data.packages.at(-1).closed.balance,null);

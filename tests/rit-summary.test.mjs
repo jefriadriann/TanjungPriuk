@@ -25,12 +25,22 @@ test('same calculation covers every fleet, every month, all statuses, and combin
  const all=sum(data);assert.equal(all.netRit,-96);assert.equal(all.netFunds,-19200000);
  assert.equal(sum(data.filter(p=>p.closed)).netRit,0);assert.equal(sum([]).netFunds,0);
 });
-test('uses each control rate and verified proofs, without mutating saved records',()=>{
+test('uses the fixed rate and counts verified proofs, without mutating saved records',()=>{
  const data=[pack('low',6,{rate:100000}),pack('high',2,{rate:300000,proofs:[{status:'verified'},{status:'pending'}]})],before=structuredClone(data);
- assert.equal(sum(data).netFunds,500000);assert.equal(sum(data).netRit,1);assert.deepEqual(data,before);
+ assert.equal(sum(data).netFunds,200000);assert.equal(sum(data).netRit,1);assert.deepEqual(data,before);
 });
 test('carried cash is counted once when both controls are selected and remains available when only recipient is selected',()=>{
  const previous=pack('previous',3,{closed:{balance:400000}}),next=pack('next',5,{amount:600000,carryFrom:'previous'}),state={packages:[previous,next]};
  const all=controlTotals(state.packages,state);assert.equal(all.funded,1600000);assert.equal(all.netFunds,0);
  const recipient=controlTotals([next],state);assert.equal(recipient.funded,1000000);assert.equal(recipient.netFunds,0);
+});
+
+test('custom funding contributes fractional trip capacity and all completed trips consume it',()=>{
+ const first=pack('first',0,{target:null,rate:null,amount:750000});
+ const second=pack('second',0,{target:null,rate:null,amount:750000});
+ assert.equal(sum([first,second]).netRit,7.5);
+ assert.equal(sum([first,second]).netFunds,1500000);
+ second.actuals[0].rit=2;
+ assert.equal(sum([first,second]).netRit,5.5);
+ assert.equal(sum([first,second]).netFunds,1100000);
 });
