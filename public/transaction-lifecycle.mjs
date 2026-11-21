@@ -12,4 +12,8 @@ export function migrateRevenueState(input,{at=new Date().toISOString(),by='Migra
 export function migrateRevenueStorage(storage){const raw=storage.getItem(key);if(!raw)return null;const current=normalize(JSON.parse(raw));if(current.migrations?.[REVENUE_MIGRATION])return current;const next=migrateRevenueState(current);if(!storage.getItem(REVENUE_BACKUP_KEY))storage.setItem(REVENUE_BACKUP_KEY,raw);next.revision=current.revision+1;next.updatedAt=new Date().toISOString();next.audit=[{id:REVENUE_MIGRATION,at:next.updatedAt,action:'Revenue lama diarsipkan; Bagi Hasil menjadi Revenue',...next.migrations[REVENUE_MIGRATION]},...(current.audit||[])].slice(0,100);storage.setItem(key,JSON.stringify(next));return next;}
 export function deleteTransaction(input,id,{at=new Date().toISOString(),by='',reason='Dihapus pengguna'}={}){const next=structuredClone(input),row=next.transactions.find(t=>t.id===id);if(!row)throw Error('Transaksi tidak ditemukan atau sudah dihapus.');archive(next,row,{at,by,reason});next.transactions=next.transactions.filter(t=>t.id!==id);validate(next);return next;}
 
+export function removedTransactionIds(state){
+ return [...new Set([...(state.deletedTransactionIds||[]),...(state.deletedTransactions||[]).map(entry=>entry?.row?.id).filter(id=>typeof id==='string'&&id.length>0&&id.length<=100)])];
+}
+
 export function archiveRemovedTransactions(previous,input,options={}){const next=structuredClone(input),ids=new Set(next.transactions.map(t=>t.id)),deleted=new Set(next.deletedTransactionIds||[]);for(const row of previous.transactions)if(!ids.has(row.id)&&!deleted.has(row.id))archive(next,row,{at:options.at||new Date().toISOString(),by:options.by||'',reason:options.reason||'Dihapus dari rincian transaksi'});return next;}

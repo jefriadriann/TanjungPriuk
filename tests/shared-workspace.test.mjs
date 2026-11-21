@@ -83,3 +83,37 @@ test('all editable menus share one database across two approved accounts and a s
   assert.equal(db.state.workspace.transactions.length,0);
  }finally{globalThis.fetch=oldFetch;for(const k of names){if(before[k]===undefined)delete process.env[k];else process.env[k]=before[k];}}
 });
+
+test('opening Kontrol Rit archives a previously deleted cash control from all statuses and exports',async()=>{
+ const {controlRequest}=await import('../lib/rit-control.mjs');
+ const {selectedControls,ritExportData}=await import('../public/rit-export.mjs');
+ const oldFetch=globalThis.fetch,control=funded();
+ control.packages[0].closed={...stamp,balance:cash.expense,note:'Settled'};
+ control.workspace={...workspace(),deletedTransactions:[{...stamp,row:cash,reason:'Deleted'}]};
+ assert.equal(recoverTravelCash(control.workspace,control,stamp).transactions.length,0);
+ let db={revision:control.revision,state:control},writes=0;
+ globalThis.fetch=async(url,options={})=>{
+  if(options.method==='PATCH'){
+   assert.ok(url.endsWith('&revision=eq.'+db.revision));
+   db=JSON.parse(options.body);writes++;
+  }
+  return Response.json([structuredClone(db)]);
+ };
+ const read=async()=>{
+  let result;
+  await controlRequest({method:'GET'},{url:'https://db.example',key:'publishable'},{email:stamp.by},'session',(status,data)=>result={status,data});
+  assert.equal(result.status,200);
+  return result.data;
+ };
+ try{
+  const result=await read();
+  for(const status of ['active','closed','all']){
+   const packages=selectedControls(result,{status,plate:cash.plate,period:cash.date.slice(0,7)});
+   assert.equal(packages.length,0);
+   assert.equal(ritExportData({packages,state:result,scope:''}).body.length,0);
+  }
+  assert.equal(result.deletedPackages[0].package.id,control.packages[0].id);
+  assert.deepEqual(await read(),result);
+  assert.equal(writes,1);
+ }finally{globalThis.fetch=oldFetch;}
+});
