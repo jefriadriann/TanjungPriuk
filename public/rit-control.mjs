@@ -6,6 +6,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const num=v=>Number(v).toLocaleString('id-ID'),money=v=>'Rp '+num(v);
 const label=(title,field)=>`<label class="rc-field"><span>${title}</span>${field}</label>`;
 const input=(name,value='',extra='')=>`<input name="${name}" value="${esc(value)}" ${extra}>`;
+const fiveRitCash={description:'Uang Jalan 5 Rit',amount:1000000,target:5,rate:200000};
 export class RitControl{
  get plates(){return fleetPlates(this.getState());}
  constructor({api,getState,onWorkspace,onNavigate,toast,isSharedWorkspace=()=>false}){Object.assign(this,{api,getState,onWorkspace,onNavigate,toast,isSharedWorkspace});this.data=null;this.filter='all';this.period='all';this.view='active';this.busy=false;this.dialog=document.createElement('dialog');this.dialog.className='rc-dialog';this.dialog.setAttribute('aria-labelledby','rc-dialog-title');document.body.append(this.dialog);this.dialog.addEventListener('click',e=>this.click(e));this.dialog.addEventListener('submit',e=>this.submit(e));this.dialog.addEventListener('change',e=>this.changeRecordForm(e));}
@@ -45,17 +46,31 @@ ${conflicts.length&&!p.closed?`<p class="rc-warning">Sumber revenue lama berubah
  }
  cashForm(row,linked){
  const plate=row?.plate||(this.filter==='all'?this.plates[0]:this.filter);
- const target=Math.min(100,Number(row?.description.match(/(\d+)\s*rit\b/i)?.[1])||row?.rit||5);
- const unit=(row?.expense??1000000)/target;
+ const target=Math.min(100,Number(row?.description.match(/(\d+)\s*rit\b/i)?.[1])||row?.rit||fiveRitCash.target);
+ const unit=(row?.expense??fiveRitCash.amount)/target;
+ const presetFields=row?'':' readonly';
  this.form(row?'Koreksi uang jalan':'Tambah uang jalan',{id:linked?.id||''},'save-cash',`
  ${row?`<input type="hidden" name="sourceId" value="${esc(row.id)}">`:''}
+ ${row?'':label('Pilihan uang jalan',`<select data-cash-choice><option value="five">Uang jalan 5 rit (${money(fiveRitCash.amount)})</option><option value="custom">Lainnya (isi sendiri)</option></select>`)}
  <div class="rc-form-grid">
  ${label('Armada',`<select name="plate" ${row?'disabled':''}>${this.plates.map(v=>`<option value="${v}" ${v===plate?'selected':''}>${displayPlate(v)}</option>`).join('')}</select>`)}
  ${label('Tanggal',input('date',row?row.date||'':today(),`type="date" max="${today()}" required`))}
- ${label('Uraian',input('description',row?.description??'Uang Jalan 5 Rit','required maxlength="500"'))}
- ${label('Nominal (Rp)',input('amount',row?.expense??(row?'':1000000),'type="number" min="1" max="10000000000000" step="1" required'))}
- ${linked?'':label('Target rit',input('target',target,'type="number" min="1" max="100" step="1" required'))+label('Tarif per rit (Rp)',input('rate',Number.isSafeInteger(unit)&&unit>0&&unit<=1e9?unit:200000,'type="number" min="1" max="1000000000" step="1" required'))}
+ ${label('Uraian',input('description',row?.description??fiveRitCash.description,'required maxlength="500"'+presetFields))}
+ ${label('Nominal (Rp)',input('amount',row?.expense??(row?'':fiveRitCash.amount),'type="number" min="1" max="10000000000000" step="1" required'+presetFields))}
+ ${linked?'':label('Target rit',input('target',target,'type="number" min="1" max="100" step="1" required'+presetFields))+label('Tarif per rit (Rp)',input('rate',Number.isSafeInteger(unit)&&unit>0&&unit<=1e9?unit:fiveRitCash.rate,'type="number" min="1" max="1000000000" step="1" required'+presetFields))}
  </div>`);
+ if(row)return;
+ const choice=this.dialog.querySelector('[data-cash-choice]');
+ const custom={...fiveRitCash,description:'',amount:''};
+ choice.addEventListener('change',()=>{
+  const preset=choice.value==='five';
+  for(const name of Object.keys(fiveRitCash)){
+   const field=choice.form.elements.namedItem(name);
+   if(preset)custom[name]=field.value;
+   field.value=preset?fiveRitCash[name]:custom[name];
+   field.readOnly=preset;
+  }
+ });
  }
  async save(command,notify=true){
  if(this.busy)throw Error('Penyimpanan sedang berlangsung.');
