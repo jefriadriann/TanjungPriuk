@@ -18,3 +18,8 @@
 @media print{.rit-print-report .rc-print-header{display:flex;align-items:center;gap:18px}.rit-print-report .rc-print-header img{width:64px;height:64px;object-fit:contain}.rit-print-report .rc-print-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.rit-print-report .rc-print-summary>div{border:1px solid #ced9e7;padding:10px;display:grid;gap:6px}.rit-print-report .rc-print-summary strong{font-size:13pt;color:#17365d}.rit-print-report .rc-print-summary span{font-size:9pt}.rit-print-report h2{font-size:11pt;margin-top:18px}.rit-print-report .rc-print-orders{break-before:auto}.rit-print-report tr{break-inside:auto}}
 
 @media print{@page ritControls{size:A4 landscape;margin:12mm;@bottom-left{content:"PT JAYA BINTANG TERANG | KONTROL RIT";font:6.5pt Arial,sans-serif;color:#425d80}@bottom-right{content:counter(page) " / " counter(pages);font:8pt Arial,sans-serif;color:#17365d}}body.ledger-printing>section.rit-print-report{page:ritControls}}
+@media print {
+  .rit-print-report tbody tr:last-child td {
+    border-bottom: 1px solid #ced9e7;
+  }
+}
